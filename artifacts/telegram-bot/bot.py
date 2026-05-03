@@ -2,6 +2,10 @@ import os
 import io
 import logging
 import smtplib
+import urllib.request
+import urllib.error
+import urllib.parse
+import json
 from email.message import EmailMessage
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
@@ -20,7 +24,46 @@ SMTP_HOST  = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT  = int(os.environ.get("SMTP_PORT", "587"))
 EMAIL_DEST = "chat.fox2@gmail.com"
 
-# ── Employee database (CSV or dict — easy to extend) ──────────────────────────
+# ── API base (shared proxy — works for all matricules in the real DB) ─────────
+API_BASE = "http://localhost:80"
+
+
+# ── Fetch employee from real PostgreSQL database via API ──────────────────────
+def fetch_from_db(matricule: str) -> dict | None:
+    """Call /api/employees/{matricule}/fiche and return a normalised emp dict."""
+    url = f"{API_BASE}/api/employees/{urllib.parse.quote(matricule)}/fiche"
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        logger.error("API HTTP error %s for %s", e.code, matricule)
+        return None
+    except Exception as e:
+        logger.error("API fetch error: %s", e)
+        return None
+
+    emp_raw  = data.get("employee", {})
+    visites  = data.get("visites", [])
+
+    # Last visite (most recent) for status & date
+    last = visites[0] if visites else {}
+
+    return {
+        "nom":      emp_raw.get("nom", ""),
+        "prenom":   emp_raw.get("prenom", ""),
+        "poste":    emp_raw.get("posteActuel") or "",
+        "service":  emp_raw.get("service") or emp_raw.get("direction") or "",
+        "statut":   last.get("decisionAptitude") or "—",
+        "date_vm":  last.get("dateVisite") or "—",
+        "decision": last.get("observations") or last.get("recommandations") or "—",
+        "source":   "db",
+    }
+
+
+# ── Local fallback dictionary (demo only) ─────────────────────────────────────
 EMPLOYEES = {
     "MAT-2020-001": {
         "nom":      "El Alami",
@@ -29,25 +72,28 @@ EMPLOYEES = {
         "service":  "Direction Technique",
         "statut":   "APTE",
         "date_vm":  "15/03/2025",
-        "decision": "Apte au poste. Contrôle annuel recommandé.",
+        "decision": "Apte au poste. Controle annuel recommande.",
+        "source":   "local",
     },
     "MAT-2020-002": {
         "nom":      "Benali",
         "prenom":   "Fatima",
         "poste":    "Comptable",
-        "service":  "Direction Financière",
-        "statut":   "APTE SOUS RÉSERVE",
+        "service":  "Direction Financiere",
+        "statut":   "APTE SOUS RESERVE",
         "date_vm":  "20/04/2025",
-        "decision": "Apte sous réserve. Suivi ophtalmologique requis.",
+        "decision": "Apte sous reserve. Suivi ophtalmologique requis.",
+        "source":   "local",
     },
     "MAT-2020-003": {
         "nom":      "Idrissi",
         "prenom":   "Mehdi",
-        "poste":    "Ingénieur HSE",
-        "service":  "Hygiène & Sécurité",
+        "poste":    "Ingenieur HSE",
+        "service":  "Hygiene & Securite",
         "statut":   "APTE",
         "date_vm":  "10/01/2025",
-        "decision": "Apte. Pas de restriction médicale.",
+        "decision": "Apte. Pas de restriction medicale.",
+        "source":   "local",
     },
 }
 
@@ -186,18 +232,30 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_matricule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = update.message.text.strip().upper()
-    emp  = EMPLOYEES.get(text)
+    text = update.message.text.strip()
+
+    # 1) Check local demo dict (case-insensitive upper)
+    emp = EMPLOYEES.get(text.upper())
+
+    # 2) If not found locally, try the real database
+    if emp is None:
+        await update.message.reply_text(f"Recherche de '{text}' dans la base de donnees...")
+        emp = fetch_from_db(text)
+
+    # 3) Also try uppercase version in DB
+    if emp is None and text != text.upper():
+        emp = fetch_from_db(text.upper())
 
     if emp is None:
         await update.message.reply_text(
             f"Matricule '{text}' introuvable.\n"
-            "Verifiez et reessayez (ex: MAT-2020-001)."
+            "Verifiez le matricule et reessayez."
         )
         return
 
     full_name = f"{emp['prenom']} {emp['nom']}"
-    await update.message.reply_text(f"Generation de la fiche pour {full_name}...")
+    source_label = " [BD]" if emp.get("source") == "db" else ""
+    await update.message.reply_text(f"Generation de la fiche pour {full_name}{source_label}...")
 
     try:
         pdf_bytes = generate_fiche_pdf(text, emp)
