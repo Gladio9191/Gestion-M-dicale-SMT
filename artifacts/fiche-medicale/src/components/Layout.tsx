@@ -225,7 +225,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* ── Clock + Calendar — pinned bottom ─────────────── */}
-        <SidebarClockCalendar />
+        <div className="mt-4">
+          <SidebarClockCalendar />
+        </div>
       </aside>
 
       {/* ── Main ─────────────────────────────────────────────── */}
