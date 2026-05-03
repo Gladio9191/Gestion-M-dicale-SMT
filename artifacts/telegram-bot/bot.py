@@ -112,15 +112,14 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
 
     W = 170   # usable width (210 - 2*20)
 
-    # ── SMT LAAYOUNE — standalone bordered box, top-left corner
-    BOX_W = 52   # narrow box ~1/3 of page width
-    pdf.set_font("Helvetica", "BI", 9)
-    pdf.cell(BOX_W, 8, "SMT LAAYOUNE", border=1, align="L",
+    # ── SMT LAAYOUNE — top-left, italic, small, NO border
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(W, 6, "SMT LAAYOUNE", align="L", border=0,
              new_x="LMARGIN", new_y="NEXT")
 
-    # ── Main title — full width, centered, bold, bordered
+    # ── Main title — centered, bold, NO border
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(W, 10, "FICHE TECHNIQUE MEDICALE", align="C", border=1,
+    pdf.cell(W, 10, "FICHE TECHNIQUE MEDICALE", align="C", border=0,
              new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
