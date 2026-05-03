@@ -1,17 +1,25 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Plus, Activity, FileUp, FileText } from "lucide-react";
+import { LayoutDashboard, Users, Plus, Activity, FileUp, FileText, ShieldCheck, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/", label: "Tableau de bord", icon: LayoutDashboard, exact: true },
   { href: "/employees", label: "Employés", icon: Users },
   { href: "/employees/new", label: "Nouvel employé", icon: Plus },
   { href: "/import", label: "Import Excel", icon: FileUp },
   { href: "/generer", label: "Générer Fiches PDF", icon: FileText },
 ];
 
+const hygieneItems = [
+  { href: "/hygiene/new", label: "Nouvelle visite", icon: ShieldCheck },
+  { href: "/hygiene/historique", label: "Historique visites", icon: History },
+];
+
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+
+  const isActive = (href: string, exact?: boolean) =>
+    exact ? location === href : location.startsWith(href);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -29,20 +37,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
+
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              item.href === "/"
-                ? location === "/"
-                : location.startsWith(item.href);
+            const active = isActive(item.href, item.exact);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive
+                  active
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
@@ -52,7 +58,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+
+          {/* Hygiene section */}
+          <div className="pt-3">
+            <p className="px-3 pb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Hygiène & Sécurité
+            </p>
+            {hygieneItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
+
         <div className="px-6 py-4 border-t border-sidebar-border">
           <p className="text-xs text-muted-foreground">
             Données confidentielles — usage médical

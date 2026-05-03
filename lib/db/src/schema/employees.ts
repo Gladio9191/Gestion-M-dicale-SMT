@@ -85,6 +85,16 @@ export const visitesTable = pgTable("visites_medicales", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const visitesHygieneTable = pgTable("visites_hygiene", {
+  id: serial("id").primaryKey(),
+  dateVisite: text("date_visite").notNull(),
+  direction: text("direction").notNull(),
+  site: text("site").notNull(),
+  data: text("data").notNull(),
+  scoreGlobal: integer("score_global"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const insertEmployeeSchema = createInsertSchema(employeesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAntecedentSchema = createInsertSchema(antecedentsTable).omit({ id: true, createdAt: true });
 export const insertRestrictionSchema = createInsertSchema(restrictionsTable).omit({ id: true, createdAt: true });
