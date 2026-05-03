@@ -78,10 +78,14 @@ export const visitesTable = pgTable("visites_medicales", {
   employeeId: integer("employee_id").notNull().references(() => employeesTable.id, { onDelete: "cascade" }),
   dateVisite: text("date_visite").notNull(),
   typeVisite: text("type_visite"),
+  risque: text("risque"),
   examensCliniques: text("examens_cliniques"),
   observations: text("observations"),
   recommandations: text("recommandations"),
   decisionAptitude: aptitudeEnum("decision_aptitude"),
+  orientationSoins: text("orientation_soins"),
+  examenRadio: text("examen_radio"),
+  bilan: text("bilan"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

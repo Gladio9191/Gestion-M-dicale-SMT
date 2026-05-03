@@ -40,7 +40,19 @@ router.get("/registre-activites", async (req, res) => {
 
     const directions = directionsResult.map((r) => r.direction).filter(Boolean);
 
-    let visitMap = new Map<number, { dateVisite: string; typeVisite: string | null; decisionAptitude: string | null }>();
+    type VisitRow = {
+      dateVisite: string;
+      typeVisite: string | null;
+      risque: string | null;
+      examensCliniques: string | null;
+      observations: string | null;
+      decisionAptitude: string | null;
+      orientationSoins: string | null;
+      examenRadio: string | null;
+      bilan: string | null;
+    };
+
+    let visitMap = new Map<number, VisitRow>();
     if (employees.length > 0) {
       const empIds = employees.map((e) => e.id);
       const visits = await db
@@ -48,7 +60,13 @@ router.get("/registre-activites", async (req, res) => {
           employeeId:       visitesTable.employeeId,
           dateVisite:       visitesTable.dateVisite,
           typeVisite:       visitesTable.typeVisite,
+          risque:           visitesTable.risque,
+          examensCliniques: visitesTable.examensCliniques,
+          observations:     visitesTable.observations,
           decisionAptitude: visitesTable.decisionAptitude,
+          orientationSoins: visitesTable.orientationSoins,
+          examenRadio:      visitesTable.examenRadio,
+          bilan:            visitesTable.bilan,
         })
         .from(visitesTable)
         .where(inArray(visitesTable.employeeId, empIds))
@@ -56,25 +74,33 @@ router.get("/registre-activites", async (req, res) => {
 
       for (const v of visits) {
         if (!visitMap.has(v.employeeId)) {
-          visitMap.set(v.employeeId, { dateVisite: v.dateVisite, typeVisite: v.typeVisite, decisionAptitude: v.decisionAptitude });
+          visitMap.set(v.employeeId, {
+            dateVisite:       v.dateVisite,
+            typeVisite:       v.typeVisite,
+            risque:           v.risque,
+            examensCliniques: v.examensCliniques,
+            observations:     v.observations,
+            decisionAptitude: v.decisionAptitude,
+            orientationSoins: v.orientationSoins,
+            examenRadio:      v.examenRadio,
+            bilan:            v.bilan,
+          });
         }
       }
     }
 
     const rows = employees.map((e) => ({
-      id:               e.id,
-      matricule:        e.matricule,
-      nom:              e.nom,
-      prenom:           e.prenom,
-      direction:        e.direction,
-      service:          e.service,
-      posteActuel:      e.posteActuel,
-      dateNaissance:    e.dateNaissance,
-      dateEmbauche:     e.dateEmbauche,
-      age:              e.dateNaissance
+      id:            e.id,
+      matricule:     e.matricule,
+      nom:           e.nom,
+      prenom:        e.prenom,
+      direction:     e.direction,
+      service:       e.service,
+      posteActuel:   e.posteActuel,
+      age:           e.dateNaissance
         ? new Date().getFullYear() - new Date(e.dateNaissance).getFullYear()
         : null,
-      latestVisite: visitMap.get(e.id) ?? null,
+      latestVisite:  visitMap.get(e.id) ?? null,
     }));
 
     return res.json({ total: Number(cnt), rows, directions });
