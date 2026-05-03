@@ -223,12 +223,42 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Comment utiliser ce bot :\n\n"
-        "Envoyez un matricule -> PDF envoye + email automatique\n\n"
-        "Matricules disponibles (demo) :\n"
-        "  MAT-2020-001\n"
-        "  MAT-2020-002\n"
-        "  MAT-2020-003"
+        "Envoyez un matricule (ex: 80022)\n"
+        "-> PDF genere + email envoye automatiquement\n\n"
+        "/list  — Voir tous les employes dans la base\n"
+        "/help  — Cette aide\n\n"
+        "Pour ajouter un employe : utilisez l'application web\n"
+        "(ajoutez-le, puis envoyez son matricule ici)."
     )
+
+
+async def list_employees(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show all employees currently in the real database."""
+    url = f"{API_BASE}/api/employees?limit=100"
+    try:
+        with urllib.request.urlopen(url, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception as e:
+        logger.error("List employees error: %s", e)
+        await update.message.reply_text("Erreur lors de la recuperation de la liste.")
+        return
+
+    employees = data.get("employees") or data.get("data") or (data if isinstance(data, list) else [])
+
+    if not employees:
+        await update.message.reply_text("Aucun employe trouve dans la base de donnees.")
+        return
+
+    lines = ["Liste des employes (base de donnees) :\n"]
+    for emp in employees:
+        mat  = emp.get("matricule", "?")
+        nom  = emp.get("nom", "")
+        prenom = emp.get("prenom", "")
+        lines.append(f"  {mat}  —  {prenom} {nom}")
+
+    lines.append(f"\nTotal : {len(employees)} employe(s)")
+    lines.append("\nEnvoyez un matricule pour generer le PDF.")
+    await update.message.reply_text("\n".join(lines))
 
 
 async def handle_matricule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -288,6 +318,7 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help",  help_cmd))
+    app.add_handler(CommandHandler("list",  list_employees))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_matricule))
 
     logger.info("Bot is running...")
