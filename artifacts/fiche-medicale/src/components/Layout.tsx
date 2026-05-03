@@ -195,10 +195,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Activity className="w-[18px] h-[18px] text-white" />
             </div>
             <div className="min-w-0">
-              <p className="text-[12px] font-extrabold text-white leading-tight tracking-tight truncate">
-                Médecine du Travail
+              <p className="text-[15px] font-extrabold text-white leading-tight tracking-tight truncate">
+                MY SERVICE
               </p>
-              <p className="text-[9.5px] text-white/50 mt-0.5 truncate">SMT Laâyoune</p>
+              <p className="text-[10px] text-white/60 italic mt-0.5 truncate">In my pocket</p>
             </div>
           </div>
         </div>
