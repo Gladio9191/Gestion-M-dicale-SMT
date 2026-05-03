@@ -1,22 +1,35 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API for Médecine du Travail - Fiches Techniques Médicales
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: employees
+    description: Employee management
+  - name: visites
+    description: Medical visits
+  - name: antecedents
+    description: Medical history
+  - name: restrictions
+    description: Medical restrictions
+  - name: expertises
+    description: Medical expertises
+  - name: import
+    description: Excel import
+  - name: stats
+    description: Statistics and summaries
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +37,426 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List all employees
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of employees
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeListResponse"
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create a new employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmployeeBody"
+      responses:
+        "201":
+          description: Created employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{matricule}:
+    get:
+      operationId: getEmployee
+      tags: [employees]
+      summary: Get employee by matricule
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Employee data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update employee info
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEmployeeBody"
+      responses:
+        "200":
+          description: Updated employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{matricule}/fiche:
+    get:
+      operationId: getEmployeeFiche
+      tags: [employees]
+      summary: Get complete fiche technique for an employee
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full fiche technique médicale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FicheTechnique"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /employees/{matricule}/visites:
+    get:
+      operationId: getEmployeeVisites
+      tags: [visites]
+      summary: Get all medical visits for an employee
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of visits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Visite"
+    post:
+      operationId: createVisite
+      tags: [visites]
+      summary: Add a medical visit for an employee
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVisiteBody"
+      responses:
+        "201":
+          description: Created visit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Visite"
+
+  /visites/{id}:
+    put:
+      operationId: updateVisite
+      tags: [visites]
+      summary: Update a medical visit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVisiteBody"
+      responses:
+        "200":
+          description: Updated visit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Visite"
+    delete:
+      operationId: deleteVisite
+      tags: [visites]
+      summary: Delete a medical visit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /employees/{matricule}/antecedents:
+    post:
+      operationId: createAntecedent
+      tags: [antecedents]
+      summary: Add a medical antecedent
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAntecedentBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Antecedent"
+
+  /antecedents/{id}:
+    delete:
+      operationId: deleteAntecedent
+      tags: [antecedents]
+      summary: Delete an antecedent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /employees/{matricule}/restrictions:
+    post:
+      operationId: createRestriction
+      tags: [restrictions]
+      summary: Add a medical restriction
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRestrictionBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Restriction"
+
+  /restrictions/{id}:
+    delete:
+      operationId: deleteRestriction
+      tags: [restrictions]
+      summary: Delete a restriction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /employees/{matricule}/expertises:
+    post:
+      operationId: createExpertise
+      tags: [expertises]
+      summary: Add a medical expertise
+      parameters:
+        - name: matricule
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpertiseBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expertise"
+
+  /expertises/{id}:
+    delete:
+      operationId: deleteExpertise
+      tags: [expertises]
+      summary: Delete an expertise
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /stats/overview:
+    get:
+      operationId: getStatsOverview
+      tags: [stats]
+      summary: Get dashboard statistics overview
+      responses:
+        "200":
+          description: Stats overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsOverview"
+
+  /stats/services:
+    get:
+      operationId: getStatsByService
+      tags: [stats]
+      summary: Get employee counts by service
+      responses:
+        "200":
+          description: Stats by service
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceStat"
+
+  /stats/recent-visites:
+    get:
+      operationId: getRecentVisites
+      tags: [stats]
+      summary: Get recent medical visits
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent visits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RecentVisite"
+
+  /stats/aptitude:
+    get:
+      operationId: getAptitudeStats
+      tags: [stats]
+      summary: Get aptitude decision statistics
+      responses:
+        "200":
+          description: Aptitude stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AptitudeStat"
+
+  /services:
+    get:
+      operationId: listServices
+      tags: [employees]
+      summary: List all unique services
+      responses:
+        "200":
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +464,362 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        matricule:
+          type: string
+        nom:
+          type: string
+        prenom:
+          type: string
+        dateNaissance:
+          type: string
+          nullable: true
+        age:
+          type: integer
+          nullable: true
+        dateEmbauche:
+          type: string
+          nullable: true
+        service:
+          type: string
+          nullable: true
+        posteActuel:
+          type: string
+          nullable: true
+        anamnese:
+          type: string
+          nullable: true
+        decisionsImportantes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, matricule, nom, prenom, createdAt, updatedAt]
+
+    CreateEmployeeBody:
+      type: object
+      properties:
+        matricule:
+          type: string
+        nom:
+          type: string
+        prenom:
+          type: string
+        dateNaissance:
+          type: string
+          nullable: true
+        dateEmbauche:
+          type: string
+          nullable: true
+        service:
+          type: string
+          nullable: true
+        posteActuel:
+          type: string
+          nullable: true
+        anamnese:
+          type: string
+          nullable: true
+        decisionsImportantes:
+          type: string
+          nullable: true
+      required: [matricule, nom, prenom]
+
+    UpdateEmployeeBody:
+      type: object
+      properties:
+        nom:
+          type: string
+        prenom:
+          type: string
+        dateNaissance:
+          type: string
+          nullable: true
+        dateEmbauche:
+          type: string
+          nullable: true
+        service:
+          type: string
+          nullable: true
+        posteActuel:
+          type: string
+          nullable: true
+        anamnese:
+          type: string
+          nullable: true
+        decisionsImportantes:
+          type: string
+          nullable: true
+
+    EmployeeListResponse:
+      type: object
+      properties:
+        employees:
+          type: array
+          items:
+            $ref: "#/components/schemas/Employee"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required: [employees, total, page, limit]
+
+    Visite:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        dateVisite:
+          type: string
+        typeVisite:
+          type: string
+          nullable: true
+        examensCliniques:
+          type: string
+          nullable: true
+        observations:
+          type: string
+          nullable: true
+        recommandations:
+          type: string
+          nullable: true
+        decisionAptitude:
+          type: string
+          nullable: true
+          enum: [APTE, INAPTE, APTE_SOUS_RESERVE, null]
+        createdAt:
+          type: string
+      required: [id, employeeId, dateVisite, createdAt]
+
+    CreateVisiteBody:
+      type: object
+      properties:
+        dateVisite:
+          type: string
+        typeVisite:
+          type: string
+          nullable: true
+        examensCliniques:
+          type: string
+          nullable: true
+        observations:
+          type: string
+          nullable: true
+        recommandations:
+          type: string
+          nullable: true
+        decisionAptitude:
+          type: string
+          nullable: true
+          enum: [APTE, INAPTE, APTE_SOUS_RESERVE, null]
+      required: [dateVisite]
+
+    Antecedent:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        type:
+          type: string
+          enum: [PATHOLOGIQUE, PROFESSIONNEL, CHIRURGICAL, ALLERGIQUE, AUTRE]
+        description:
+          type: string
+        createdAt:
+          type: string
+      required: [id, employeeId, type, description, createdAt]
+
+    CreateAntecedentBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [PATHOLOGIQUE, PROFESSIONNEL, CHIRURGICAL, ALLERGIQUE, AUTRE]
+        description:
+          type: string
+      required: [type, description]
+
+    Restriction:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        typeRestriction:
+          type: string
+          enum: [DEFINITIVE, TEMPORAIRE]
+        motifMedical:
+          type: string
+        dateDebut:
+          type: string
+          nullable: true
+        dateFin:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, employeeId, typeRestriction, motifMedical, createdAt]
+
+    CreateRestrictionBody:
+      type: object
+      properties:
+        typeRestriction:
+          type: string
+          enum: [DEFINITIVE, TEMPORAIRE]
+        motifMedical:
+          type: string
+        dateDebut:
+          type: string
+          nullable: true
+        dateFin:
+          type: string
+          nullable: true
+      required: [typeRestriction, motifMedical]
+
+    Expertise:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeId:
+          type: integer
+        typeExpertise:
+          type: string
+          enum: [OPTHALMO, PSY, ORL, VERTIGE, AUTRE]
+        dateExpertise:
+          type: string
+          nullable: true
+        resultat:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, employeeId, typeExpertise, createdAt]
+
+    CreateExpertiseBody:
+      type: object
+      properties:
+        typeExpertise:
+          type: string
+          enum: [OPTHALMO, PSY, ORL, VERTIGE, AUTRE]
+        dateExpertise:
+          type: string
+          nullable: true
+        resultat:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required: [typeExpertise]
+
+    FicheTechnique:
+      type: object
+      properties:
+        employee:
+          $ref: "#/components/schemas/Employee"
+        antecedents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Antecedent"
+        restrictions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Restriction"
+        expertises:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expertise"
+        visites:
+          type: array
+          items:
+            $ref: "#/components/schemas/Visite"
+      required: [employee, antecedents, restrictions, expertises, visites]
+
+    StatsOverview:
+      type: object
+      properties:
+        totalEmployees:
+          type: integer
+        totalVisites:
+          type: integer
+        visitesThisYear:
+          type: integer
+        inapteCount:
+          type: integer
+        restrictionsCount:
+          type: integer
+        servicesCount:
+          type: integer
+      required: [totalEmployees, totalVisites, visitesThisYear, inapteCount, restrictionsCount, servicesCount]
+
+    ServiceStat:
+      type: object
+      properties:
+        service:
+          type: string
+        count:
+          type: integer
+      required: [service, count]
+
+    RecentVisite:
+      type: object
+      properties:
+        id:
+          type: integer
+        matricule:
+          type: string
+        nomPrenom:
+          type: string
+        service:
+          type: string
+          nullable: true
+        dateVisite:
+          type: string
+        typeVisite:
+          type: string
+          nullable: true
+        decisionAptitude:
+          type: string
+          nullable: true
+      required: [id, matricule, nomPrenom, dateVisite]
+
+    AptitudeStat:
+      type: object
+      properties:
+        decision:
+          type: string
+        count:
+          type: integer
+      required: [decision, count]

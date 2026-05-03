@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Fiches Médicales - Médecine du Travail"
+version = "1.0.0"
+id = "artifacts/fiche-medicale"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18971
+
+[services.development]
+run = "pnpm --filter @workspace/fiche-medicale run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fiche-medicale", "run", "build" ]
+publicDir = "artifacts/fiche-medicale/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18971"
+BASE_PATH = "/"
