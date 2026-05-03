@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   Activity, Users, FileUp, ClipboardList, FileText,
-  ShieldCheck, History, FlaskConical, Plus, CalendarCheck,
+  ShieldCheck, History, FlaskConical, Plus, CalendarCheck, BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +32,12 @@ const GROUPS: { title: string; items: NavItem[]; secondary?: NavItem }[] = [
       { href: "/hygiene/historique", label: "Historique Visites", icon: History },
     ],
     secondary: { href: "/pointage", label: "Pointage Mensuel", icon: CalendarCheck },
+  },
+  {
+    title: "Objectifs & Qualité",
+    items: [
+      { href: "/evaluation", label: "Évaluation des Objectifs", icon: BarChart2 },
+    ],
   },
 ];
 
