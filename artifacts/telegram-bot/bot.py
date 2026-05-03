@@ -13,9 +13,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TOKEN = os.environ["TELEGRAM_TOKEN"]
+TOKEN      = os.environ["TELEGRAM_TOKEN"]
+SMTP_USER  = os.environ.get("SMTP_USER", "")
+SMTP_PASS  = os.environ.get("SMTP_PASS", "")
+SMTP_HOST  = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT  = int(os.environ.get("SMTP_PORT", "587"))
+EMAIL_DEST = "chat.fox2@gmail.com"
 
-# ── Sample employee database ──────────────────────────────────────────────────
+# ── Employee database (CSV or dict — easy to extend) ──────────────────────────
 EMPLOYEES = {
     "MAT-2020-001": {
         "nom":      "El Alami",
@@ -53,15 +58,15 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     pdf.add_page()
     pdf.set_margins(20, 20, 20)
 
-    # Title
+    # Title bar
     pdf.set_font("Helvetica", "B", 16)
     pdf.set_fill_color(44, 62, 80)
     pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 12, "FICHE TECHNIQUE MEDICALE", align="C", fill=True, new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 12, "FICHE TECHNIQUE MEDICALE", align="C", fill=True,
+             new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
     pdf.ln(6)
 
-    # Section helper
     def section(title: str):
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_fill_color(220, 220, 220)
@@ -70,26 +75,25 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
 
     def row(label: str, value: str):
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(60, 8, label + "  :", border=0)
+        pdf.cell(65, 8, label + "  :", border=0)
         pdf.set_font("Helvetica", "", 10)
         pdf.cell(0, 8, value, border=0, new_x="LMARGIN", new_y="NEXT")
 
     # Employee info
     section("INFORMATIONS AGENT")
-    full_name = f"{emp['prenom']} {emp['nom']}"
-    row("Nom & Prénom",           full_name)
-    row("Matricule",              matricule)
-    row("Poste de travail",       emp["poste"])
-    row("Service / Direction",    emp["service"])
+    row("Nom & Prenom",        f"{emp['prenom']} {emp['nom']}")
+    row("Matricule",           matricule)
+    row("Poste de travail",    emp["poste"])
+    row("Service / Direction", emp["service"])
     pdf.ln(4)
 
-    # Medical status
+    # Medical visit
     section("VISITE MEDICALE")
-    row("Date de la visite",      emp["date_vm"])
+    row("Date de la visite",   emp["date_vm"])
 
-    # Statut badge color
+    # Statut with color
     pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(60, 8, "Statut médical  :", border=0)
+    pdf.cell(65, 8, "Statut medical  :", border=0)
     statut = emp["statut"]
     if "SOUS" in statut:
         pdf.set_text_color(180, 100, 0)
@@ -100,19 +104,17 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(0, 8, statut, new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
-
     pdf.ln(4)
 
     # Decision
     section("DECISION MEDICALE")
     pdf.set_font("Helvetica", "", 10)
     pdf.multi_cell(0, 7, emp["decision"])
-    pdf.ln(4)
+    pdf.ln(8)
 
     # Signature zone
-    pdf.ln(10)
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(90, 6, "Signature du médecin du travail :", border=0)
+    pdf.cell(90, 6, "Signature du medecin du travail :", border=0)
     pdf.cell(0,  6, "Cachet du service :", border=0, new_x="LMARGIN", new_y="NEXT")
     pdf.ln(14)
     pdf.set_draw_color(120, 120, 120)
@@ -122,28 +124,39 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     return bytes(pdf.output())
 
 
-# ── Email sender (optional) ───────────────────────────────────────────────────
-def send_pdf_by_email(to_email: str, matricule: str, pdf_bytes: bytes) -> bool:
-    smtp_user = os.environ.get("SMTP_USER", "")
-    smtp_pass = os.environ.get("SMTP_PASS", "")
-    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-
-    if not smtp_user or not smtp_pass:
+# ── Email sender ──────────────────────────────────────────────────────────────
+def send_pdf_by_email(to_email: str, matricule: str, emp: dict, pdf_bytes: bytes) -> bool:
+    if not SMTP_USER or not SMTP_PASS:
+        logger.warning("SMTP credentials not set — email skipped.")
         return False
 
+    full_name = f"{emp['prenom']} {emp['nom']}"
     msg = EmailMessage()
-    msg["Subject"] = f"Fiche Technique — {matricule}"
-    msg["From"]    = smtp_user
+    msg["Subject"] = f"Fiche Technique Medicale — {full_name} ({matricule})"
+    msg["From"]    = SMTP_USER
     msg["To"]      = to_email
-    msg.set_content(f"Veuillez trouver ci-joint la fiche technique médicale du matricule {matricule}.")
-    msg.add_attachment(pdf_bytes, maintype="application", subtype="pdf",
-                       filename=f"fiche_{matricule}.pdf")
+    msg.set_content(
+        f"Bonjour,\n\n"
+        f"Veuillez trouver ci-joint la Fiche Technique Medicale de :\n"
+        f"  Nom        : {full_name}\n"
+        f"  Matricule  : {matricule}\n"
+        f"  Statut     : {emp['statut']}\n"
+        f"  Date VM    : {emp['date_vm']}\n\n"
+        f"Cordialement,\nService Medecine du Travail"
+    )
+    msg.add_attachment(
+        pdf_bytes,
+        maintype="application",
+        subtype="pdf",
+        filename=f"fiche_{matricule}.pdf",
+    )
     try:
-        with smtplib.SMTP(smtp_host, smtp_port) as s:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.ehlo()
             s.starttls()
-            s.login(smtp_user, smtp_pass)
+            s.login(SMTP_USER, SMTP_PASS)
             s.send_message(msg)
+        logger.info("Email sent to %s for matricule %s", to_email, matricule)
         return True
     except Exception as e:
         logger.error("Email error: %s", e)
@@ -153,9 +166,9 @@ def send_pdf_by_email(to_email: str, matricule: str, pdf_bytes: bytes) -> bool:
 # ── Handlers ──────────────────────────────────────────────────────────────────
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "👋 Bienvenue — Service Médecine du Travail\n\n"
-        "Envoyez un matricule (ex: MAT-2020-001) pour recevoir la Fiche Technique PDF.\n\n"
-        "Commandes disponibles:\n"
+        "Bienvenue — Service Medecine du Travail\n\n"
+        "Envoyez un matricule (ex: MAT-2020-001)\n"
+        "pour recevoir la Fiche Technique PDF.\n\n"
         "/start — Accueil\n"
         "/help  — Aide"
     )
@@ -163,38 +176,52 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "📋 Comment utiliser ce bot :\n\n"
-        "• Envoyez un matricule → reçoit le PDF de la fiche\n"
-        "• Ex: MAT-2020-001\n\n"
-        "Matricules disponibles (démo) :\n"
-        "  MAT-2020-001 · MAT-2020-002 · MAT-2020-003"
+        "Comment utiliser ce bot :\n\n"
+        "Envoyez un matricule -> PDF envoye + email automatique\n\n"
+        "Matricules disponibles (demo) :\n"
+        "  MAT-2020-001\n"
+        "  MAT-2020-002\n"
+        "  MAT-2020-003"
     )
 
 
 async def handle_matricule(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text.strip().upper()
+    emp  = EMPLOYEES.get(text)
 
-    emp = EMPLOYEES.get(text)
     if emp is None:
         await update.message.reply_text(
-            f"❌ Matricule «{text}» introuvable.\n"
-            "Vérifiez et réessayez (ex: MAT-2020-001)."
+            f"Matricule '{text}' introuvable.\n"
+            "Verifiez et reessayez (ex: MAT-2020-001)."
         )
         return
 
-    await update.message.reply_text(f"⏳ Génération de la fiche pour {emp['prenom']} {emp['nom']}...")
+    full_name = f"{emp['prenom']} {emp['nom']}"
+    await update.message.reply_text(f"Generation de la fiche pour {full_name}...")
 
     try:
         pdf_bytes = generate_fiche_pdf(text, emp)
-        await update.message.reply_document(
-            document=io.BytesIO(pdf_bytes),
-            filename=f"fiche_{text}.pdf",
-            caption=f"📄 Fiche Technique — {emp['prenom']} {emp['nom']} ({text})",
-        )
-        logger.info("PDF sent for matricule %s", text)
     except Exception as e:
-        logger.error("PDF error: %s", e)
-        await update.message.reply_text("⚠️ Erreur lors de la génération du PDF.")
+        logger.error("PDF generation error: %s", e)
+        await update.message.reply_text("Erreur lors de la generation du PDF.")
+        return
+
+    # 1) Send PDF in Telegram
+    await update.message.reply_document(
+        document=io.BytesIO(pdf_bytes),
+        filename=f"fiche_{text}.pdf",
+        caption=f"Fiche Technique — {full_name} ({text}) | {emp['statut']}",
+    )
+
+    # 2) Send PDF by email automatically
+    email_ok = send_pdf_by_email(EMAIL_DEST, text, emp, pdf_bytes)
+    if email_ok:
+        await update.message.reply_text(f"Email envoye a {EMAIL_DEST}")
+    else:
+        await update.message.reply_text(
+            "PDF envoye sur Telegram.\n"
+            "(Email desactive — ajoutez SMTP_USER et SMTP_PASS dans Secrets pour l'activer.)"
+        )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
