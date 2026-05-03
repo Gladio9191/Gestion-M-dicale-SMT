@@ -199,35 +199,43 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     ROW_H      = 7
     MIN_ROWS   = 18              # fits exactly on one A4 page
 
+    # ── Table headers (bold, grey fill) ──────────────────────────────────────
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(220, 220, 220)
-    pdf.cell(C1, ROW_H, "Date des visites",                      border=1, align="C", fill=True)
-    pdf.cell(C2, ROW_H, "Examens cliniques et/ou explorations",  border=1, align="C", fill=True)
-    pdf.cell(C3, ROW_H, "Decision medicale",                     border=1, align="C", fill=True,
+    pdf.cell(C1, ROW_H, "Date des visites",
+             border=1, align="C", fill=True)
+    pdf.cell(C2, ROW_H, "Examen Clinique & Examens demand\u00e9s",
+             border=1, align="C", fill=True)
+    pdf.cell(C3, ROW_H, "D\u00e9cision m\u00e9dicale",
+             border=1, align="C", fill=True,
              new_x="LMARGIN", new_y="NEXT")
 
     def normalize_decision(raw: str) -> str:
-        """Map any DB value to one of the three official medical decisions."""
+        """Return one of three official decisions in ALL-CAPS."""
         r = (raw or "").upper().strip()
         if not r:
             return ""
         if "INAPTE" in r:
-            return "Inapte"
+            return "INAPTE"
         if "RESERV" in r or "\u00e9SERV" in r or "SOUS" in r:
-            return "Apte sous reserve"
-        return "Apte"
+            return "APTE SOUS R\u00c9SERVE"
+        return "APTE"
 
     visites = fiche.get("visites", []) if fiche else []
-    pdf.set_font("Helvetica", "", 9)
     for v in visites:
         date_v   = v.get("dateVisite") or ""
-        exam     = v.get("examensCliniques") or "RAS"   # default: Rien A Signaler
+        exam     = v.get("examensCliniques") or "RAS"
         decision = normalize_decision(v.get("decisionAptitude") or "")
-        pdf.cell(C1, ROW_H, date_v,   border=1)
-        pdf.cell(C2, ROW_H, exam,     border=1)
+        # date + exam in regular font
+        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(C1, ROW_H, date_v, border=1)
+        pdf.cell(C2, ROW_H, exam,   border=1)
+        # decision in bold + ALL-CAPS
+        pdf.set_font("Helvetica", "B", 9)
         pdf.cell(C3, ROW_H, decision, border=1, new_x="LMARGIN", new_y="NEXT")
 
     empty_count = max(MIN_ROWS - len(visites), 5)
+    pdf.set_font("Helvetica", "", 9)
     for _ in range(empty_count):
         pdf.cell(C1, ROW_H, "", border=1)
         pdf.cell(C2, ROW_H, "", border=1)
