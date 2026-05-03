@@ -7,7 +7,7 @@ import {
   Upload, FileSpreadsheet, Download, Loader2, CheckCircle,
   Users, RefreshCw, ChevronDown, ChevronUp, Database,
   AlertTriangle, Layers, FileText, ClipboardList, X,
-  Star, Info,
+  Star, Info, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -344,14 +344,18 @@ export default function GenererFiches() {
   const dropRef = useRef<HTMLInputElement>(null);
 
   const [mode, setMode] = useState<"manuel" | "excel">("excel");
-  const [dragging, setDragging]       = useState(false);
-  const [files, setFiles]             = useState<UploadedFile[]>([]);
-  const [manualInput, setManualInput] = useState("");
-  const [directory, setDirectory]     = useState<ParsedDirectory | null>(null);
-  const [enrichDB, setEnrichDB]       = useState(false);
-  const [showSheets, setShowSheets]   = useState(false);
-  const [generating, setGenerating]   = useState<"pdf" | "word" | null>(null);
-  const [done, setDone]               = useState<"pdf" | "word" | null>(null);
+  const [dragging, setDragging]           = useState(false);
+  const [files, setFiles]                 = useState<UploadedFile[]>([]);
+  const [manualInput, setManualInput]     = useState("");
+  const [directory, setDirectory]         = useState<ParsedDirectory | null>(null);
+  const [enrichDB, setEnrichDB]           = useState(false);
+  const [showSheets, setShowSheets]       = useState(false);
+  const [generating, setGenerating]       = useState<"pdf" | "word" | null>(null);
+  const [done, setDone]                   = useState<"pdf" | "word" | null>(null);
+
+  // Recherche rapide
+  const [quickSearch, setQuickSearch]     = useState("");
+  const [quickLoading, setQuickLoading]   = useState<"pdf" | "word" | null>(null);
 
   /* ── Parse workbooks whenever files change ─────────────────────────────── */
   const reparse = useCallback((updatedFiles: UploadedFile[]) => {
@@ -465,6 +469,48 @@ export default function GenererFiches() {
     setGenerating(null);
   };
 
+  /* ── Recherche rapide ─────────────────────────────────────────────────── */
+  const quickGenerate = async (fmt: "pdf" | "word") => {
+    const mat = quickSearch.trim();
+    if (!mat) return;
+    setQuickLoading(fmt);
+    try {
+      let fiche: FicheData | null = null;
+
+      // 1) chercher dans les fichiers Excel chargés
+      if (directory) {
+        const resolved = resolveMatricule(mat, directory.byMat, directory.nameLookup);
+        if (resolved) fiche = resolved.fiche;
+      }
+
+      // 2) chercher dans la base de données
+      if (!fiche) {
+        fiche = await fetchFromDB(mat);
+        if (!fiche) {
+          toast({ title: `Matricule "${mat}" introuvable`, description: "Non trouvé ni dans les fichiers ni dans la base de données.", variant: "destructive" });
+          setQuickLoading(null);
+          return;
+        }
+      }
+
+      const blob = fmt === "word"
+        ? await generateWordBlob([fiche])
+        : await pdf(<FicheDocument fiches={[fiche]} />).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fiche_${fiche.employee.matricule}.${fmt === "word" ? "docx" : "pdf"}`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: `Fiche ${mat} générée ✓` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erreur de génération", variant: "destructive" });
+    }
+    setQuickLoading(null);
+  };
+
   const agentCount = directory?.byMat.size ?? 0;
   const hasFiles = files.length > 0;
   const hasGlobal = files.some((f) => f.isGlobal);
@@ -478,6 +524,56 @@ export default function GenererFiches() {
         <p className="text-muted-foreground text-sm mt-1">
           Chargez vos fichiers Excel (tous les onglets sont analysés) — une fiche par agent avec toutes ses visites
         </p>
+      </div>
+
+      {/* ── Recherche rapide ──────────────────────────────────────────── */}
+      <div className="bg-card border border-border rounded-xl px-5 py-4 mb-7">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+          <Search className="w-3.5 h-3.5" /> Recherche rapide par matricule
+        </p>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Ex: MAT-0042"
+              value={quickSearch}
+              onChange={(e) => setQuickSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && quickSearch.trim()) quickGenerate("word"); }}
+              className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <Button
+            onClick={() => quickGenerate("word")}
+            disabled={!quickSearch.trim() || !!quickLoading}
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 shrink-0"
+            size="sm"
+          >
+            {quickLoading === "word" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            Word
+          </Button>
+          <Button
+            onClick={() => quickGenerate("pdf")}
+            disabled={!quickSearch.trim() || !!quickLoading}
+            variant="outline"
+            className="gap-1.5 shrink-0"
+            size="sm"
+          >
+            {quickLoading === "pdf" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            PDF
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          البحث يتم أولاً في الملفات المحملة، ثم في قاعدة البيانات •
+          اضغط <kbd className="px-1 py-0.5 rounded bg-muted text-xs font-mono">Enter</kbd> لتحميل Word مباشرة
+        </p>
+      </div>
+
+      {/* ── Divider ───────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex-1 h-px bg-border" />
+        <span className="text-xs text-muted-foreground font-medium">أو معالجة جماعية</span>
+        <div className="flex-1 h-px bg-border" />
       </div>
 
       {/* ── Mode tabs ─────────────────────────────────────────────────── */}
