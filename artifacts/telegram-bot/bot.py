@@ -60,6 +60,7 @@ def fetch_from_db(matricule: str) -> dict | None:
         "date_vm":  last.get("dateVisite") or "—",
         "decision": last.get("observations") or last.get("recommandations") or "—",
         "source":   "db",
+        "_fiche":   data,   # full raw API response for PDF generation
     }
 
 
@@ -98,74 +99,124 @@ EMPLOYEES = {
 }
 
 
-# ── PDF generator ─────────────────────────────────────────────────────────────
+# ── PDF generator — mirrors the Word template exactly ─────────────────────────
 def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
-    pdf = FPDF()
+    fiche = emp.get("_fiche")          # full API response (DB employees)
+    e     = fiche.get("employee", {}) if fiche else {}
+
+    pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
     pdf.set_margins(20, 20, 20)
+    pdf.set_auto_page_break(auto=True, margin=15)
 
-    # Title bar
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.set_fill_color(44, 62, 80)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(0, 12, "FICHE TECHNIQUE MEDICALE", align="C", fill=True,
+    W = 170   # usable width (210 - 2*20)
+
+    # ── Title ──────────────────────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(W, 10, "FICHE TECHNIQUE MEDICALE", align="C", border=1,
              new_x="LMARGIN", new_y="NEXT")
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(6)
+    pdf.ln(4)
 
-    def section(title: str):
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.set_fill_color(220, 220, 220)
-        pdf.cell(0, 8, f"  {title}", fill=True, new_x="LMARGIN", new_y="NEXT")
+    # ── Header fields ──────────────────────────────────────────────────────────
+    LBL = 70   # label column width
+
+    def hfield(label: str, value: str):
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(LBL, 7, label + "  :", border=0)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(W - LBL, 7, value or "", border=0, new_x="LMARGIN", new_y="NEXT")
+
+    if fiche:
+        age_str = (f"{e.get('age')} ans") if e.get("age") else ""
+        hfield("Nom & Prenom",            f"{e.get('prenom','')} {e.get('nom','')}")
+        hfield("Matricule",               e.get("matricule", matricule))
+        hfield("Age",                     age_str)
+        hfield("Date d'embauche",         e.get("dateEmbauche") or "")
+        hfield("Service",                 e.get("service") or "")
+        hfield("Poste de travail actuel", e.get("posteActuel") or "")
+    else:
+        hfield("Nom & Prenom",            f"{emp.get('prenom','')} {emp.get('nom','')}")
+        hfield("Matricule",               matricule)
+        hfield("Age",                     "")
+        hfield("Date d'embauche",         "")
+        hfield("Service",                 emp.get("service", ""))
+        hfield("Poste de travail actuel", emp.get("poste", ""))
+
+    pdf.ln(4)
+
+    # ── Text sections (bold underlined title + content) ────────────────────────
+    def txt_section(title: str, content: str):
+        pdf.set_font("Helvetica", "BU", 10)
+        pdf.cell(W, 6, title, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(W, 6, content or "", new_x="LMARGIN", new_y="NEXT")
         pdf.ln(2)
 
-    def row(label: str, value: str):
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(65, 8, label + "  :", border=0)
-        pdf.set_font("Helvetica", "", 10)
-        pdf.cell(0, 8, value, border=0, new_x="LMARGIN", new_y="NEXT")
+    if fiche:
+        antecedents = fiche.get("antecedents", [])
+        atcd = "  /  ".join(
+            f"{a.get('type','')}: {a.get('description','')}"
+            for a in antecedents
+        ) if antecedents else ""
+        txt_section("ATCD NOTABLES :", atcd)
+        txt_section("ANAMNESE :", e.get("anamnese") or "")
+        txt_section("DECISIONS IMPORTANTES :", e.get("decisionsImportantes") or "")
 
-    # Employee info
-    section("INFORMATIONS AGENT")
-    row("Nom & Prenom",        f"{emp['prenom']} {emp['nom']}")
-    row("Matricule",           matricule)
-    row("Poste de travail",    emp["poste"])
-    row("Service / Direction", emp["service"])
-    pdf.ln(4)
-
-    # Medical visit
-    section("VISITE MEDICALE")
-    row("Date de la visite",   emp["date_vm"])
-
-    # Statut with color
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(65, 8, "Statut medical  :", border=0)
-    statut = emp["statut"]
-    if "SOUS" in statut:
-        pdf.set_text_color(180, 100, 0)
-    elif "INAPTE" in statut:
-        pdf.set_text_color(180, 0, 0)
+        # EXPERTISE
+        pdf.set_font("Helvetica", "BU", 10)
+        pdf.cell(W, 6, "EXPERTISE :", new_x="LMARGIN", new_y="NEXT")
+        expertises = fiche.get("expertises", [])
+        exp_map = {
+            ex.get("typeExpertise", "").upper(): ex.get("resultat") or ""
+            for ex in expertises
+        }
+        for exp_type in ["OPTHALMO", "PSY", "ORL", "VERTIGE"]:
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(45, 6, f"   {exp_type}", border=0)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.cell(W - 45, 6, exp_map.get(exp_type, ""), border=0,
+                     new_x="LMARGIN", new_y="NEXT")
     else:
-        pdf.set_text_color(0, 130, 0)
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(0, 8, statut, new_x="LMARGIN", new_y="NEXT")
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(4)
+        txt_section("ATCD NOTABLES :", "")
+        txt_section("ANAMNESE :", "")
+        txt_section("DECISIONS IMPORTANTES :", "")
+        pdf.set_font("Helvetica", "BU", 10)
+        pdf.cell(W, 6, "EXPERTISE :", new_x="LMARGIN", new_y="NEXT")
+        for exp_type in ["OPTHALMO", "PSY", "ORL", "VERTIGE"]:
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(45, 6, f"   {exp_type}", border=0)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.cell(W - 45, 6, "", border=0, new_x="LMARGIN", new_y="NEXT")
 
-    # Decision
-    section("DECISION MEDICALE")
-    pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(0, 7, emp["decision"])
-    pdf.ln(8)
+    pdf.ln(5)
 
-    # Signature zone
+    # ── Visits table ───────────────────────────────────────────────────────────
+    C1, C2, C3 = 32, 88, 50     # col widths (total = 170)
+    ROW_H      = 7
+    MIN_ROWS   = 40              # empty rows to leave for future visits
+
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(90, 6, "Signature du medecin du travail :", border=0)
-    pdf.cell(0,  6, "Cachet du service :", border=0, new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(14)
-    pdf.set_draw_color(120, 120, 120)
-    pdf.line(20, pdf.get_y(), 100, pdf.get_y())
-    pdf.line(120, pdf.get_y(), 190, pdf.get_y())
+    pdf.set_fill_color(220, 220, 220)
+    pdf.cell(C1, ROW_H, "Date des visites",                      border=1, align="C", fill=True)
+    pdf.cell(C2, ROW_H, "Examens cliniques et/ou explorations",  border=1, align="C", fill=True)
+    pdf.cell(C3, ROW_H, "Observations",                          border=1, align="C", fill=True,
+             new_x="LMARGIN", new_y="NEXT")
+
+    visites = fiche.get("visites", []) if fiche else []
+    pdf.set_font("Helvetica", "", 9)
+    for v in visites:
+        date_v = v.get("dateVisite") or ""
+        exam   = v.get("examensCliniques") or ""
+        obs    = v.get("observations") or ""
+        pdf.cell(C1, ROW_H, date_v, border=1)
+        pdf.cell(C2, ROW_H, exam,   border=1)
+        pdf.cell(C3, ROW_H, obs,    border=1, new_x="LMARGIN", new_y="NEXT")
+
+    empty_count = max(MIN_ROWS - len(visites), 5)
+    for _ in range(empty_count):
+        pdf.cell(C1, ROW_H, "", border=1)
+        pdf.cell(C2, ROW_H, "", border=1)
+        pdf.cell(C3, ROW_H, "", border=1, new_x="LMARGIN", new_y="NEXT")
 
     return bytes(pdf.output())
 
