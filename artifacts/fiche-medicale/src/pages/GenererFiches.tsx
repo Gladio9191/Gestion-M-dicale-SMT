@@ -3,65 +3,192 @@ import * as XLSX from "xlsx";
 import { pdf } from "@react-pdf/renderer";
 import { FicheDocument, FicheData } from "@/components/FichePDF";
 import {
-  Upload, FileSpreadsheet, FileText, Download,
-  Loader2, CheckCircle, XCircle, Users,
+  Upload, FileSpreadsheet, Download, Loader2,
+  CheckCircle, Users, RefreshCw, ChevronDown, ChevronUp,
+  Database, Table2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useGetEmployeeFiche } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 
-type MatriculeStatus = { matricule: string; status: "pending" | "loading" | "ok" | "error"; message?: string };
+/* ── Column mapping ──────────────────────────────────────────────────────── */
+type TargetField =
+  | "matricule" | "nom" | "prenom"
+  | "direction" | "service" | "posteActuel" | "dateEmbauche"
+  | "dateVisite" | "examensCliniques" | "observations" | "decisionAptitude";
 
-// ── Fetch one fiche directly (outside React Query hooks) ──────────────────
-async function fetchFiche(matricule: string): Promise<FicheData> {
-  const res = await fetch(`/api/employees/${encodeURIComponent(matricule)}/fiche`);
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json() as Promise<FicheData>;
+type ColMap = Record<TargetField, string>;
+
+const TARGETS: { key: TargetField; label: string; required?: boolean }[] = [
+  { key: "matricule",       label: "Matricule (Mle)",                 required: true },
+  { key: "nom",             label: "Nom" },
+  { key: "prenom",          label: "Prénom" },
+  { key: "direction",       label: "Direction" },
+  { key: "service",         label: "Service" },
+  { key: "posteActuel",     label: "Fonction / Poste" },
+  { key: "dateEmbauche",    label: "Date d'embauche" },
+  { key: "dateVisite",      label: "Date de visite" },
+  { key: "examensCliniques",label: "Examens cliniques / explorations" },
+  { key: "observations",    label: "Observations" },
+  { key: "decisionAptitude",label: "Décision d'aptitude" },
+];
+
+const SYNONYMS: Record<TargetField, string[]> = {
+  matricule:        ["mle", "mat", "matricule", "matricul"],
+  nom:              ["nom", "name", "last"],
+  prenom:           ["prenom", "prénom", "first", "given"],
+  direction:        ["dir", "direction", "département", "departement"],
+  service:          ["service", "svc"],
+  posteActuel:      ["fonction", "poste", "post", "emploi", "job"],
+  dateEmbauche:     ["embauche", "embauché", "recrutement", "recrutment", "anciennete"],
+  dateVisite:       ["date", "dates", "datevisite", "visite", "date vm", "vm"],
+  examensCliniques: ["examen", "examens", "clinique", "explorations", "bilan"],
+  observations:     ["obs", "observation", "observations", "remarque"],
+  decisionAptitude: ["decision", "aptitude", "décision", "apte"],
+};
+
+function autoMap(headers: string[]): ColMap {
+  const map = {} as ColMap;
+  for (const { key } of TARGETS) {
+    const synonyms = SYNONYMS[key];
+    const found = headers.find((h) => {
+      const n = h.toLowerCase().trim().replace(/[^a-zéèêàâîïùûç]/gi, "");
+      return synonyms.some((s) => n === s || n.startsWith(s));
+    });
+    map[key] = found ?? "";
+  }
+  return map;
 }
 
-// ── Extract matricules from Excel ─────────────────────────────────────────
-function extractMatricules(rows: Record<string, string>[]): string[] {
-  if (rows.length === 0) return [];
-  const headers = Object.keys(rows[0]);
-  const matCol = headers.find((h) => {
-    const n = h.toLowerCase().trim();
-    return ["mle", "mat", "matricule"].some((s) => n === s || n.startsWith(s));
+/* ── Fetch from DB ───────────────────────────────────────────────────────── */
+async function fetchFicheFromDB(matricule: string): Promise<FicheData | null> {
+  try {
+    const res = await fetch(`/api/employees/${encodeURIComponent(matricule)}/fiche`);
+    if (!res.ok) return null;
+    return res.json() as Promise<FicheData>;
+  } catch {
+    return null;
+  }
+}
+
+/* ── Build fiches from Excel rows ────────────────────────────────────────── */
+type RawRow = Record<string, string>;
+
+function buildFichesFromExcel(rows: RawRow[], colMap: ColMap): FicheData[] {
+  const g = (row: RawRow, key: TargetField) =>
+    (colMap[key] ? (row[colMap[key]] ?? "") : "").toString().trim();
+
+  // Group rows by matricule
+  const byMat = new Map<string, RawRow[]>();
+  for (const row of rows) {
+    const mat = g(row, "matricule");
+    if (!mat) continue;
+    if (!byMat.has(mat)) byMat.set(mat, []);
+    byMat.get(mat)!.push(row);
+  }
+
+  return Array.from(byMat.entries()).map(([matricule, agentRows]) => {
+    const first = agentRows[0];
+
+    const visites = agentRows
+      .filter((r) => g(r, "dateVisite"))
+      .map((r) => ({
+        dateVisite:       g(r, "dateVisite"),
+        typeVisite:       null,
+        examensCliniques: g(r, "examensCliniques") || null,
+        observations:     g(r, "observations") || null,
+        recommandations:  null,
+        decisionAptitude: g(r, "decisionAptitude") || null,
+      }));
+
+    return {
+      employee: {
+        matricule,
+        nom:                  g(first, "nom"),
+        prenom:               g(first, "prenom"),
+        age:                  null,
+        dateEmbauche:         g(first, "dateEmbauche") || null,
+        direction:            g(first, "direction") || null,
+        service:              g(first, "service") || null,
+        posteActuel:          g(first, "posteActuel") || null,
+        anamnese:             null,
+        decisionsImportantes: null,
+      },
+      antecedents: [],
+      restrictions: [],
+      expertises:   [],
+      visites,
+    } satisfies FicheData;
   });
-  if (!matCol) return [];
-  return [...new Set(rows.map((r) => String(r[matCol] ?? "").trim()).filter(Boolean))];
 }
 
+/* ── Merge DB data into Excel-built fiche ────────────────────────────────── */
+function mergeWithDB(excel: FicheData, db: FicheData): FicheData {
+  return {
+    employee: {
+      ...excel.employee,
+      nom:    excel.employee.nom    || db.employee.nom,
+      prenom: excel.employee.prenom || db.employee.prenom,
+      age:    db.employee.age ?? excel.employee.age,
+      dateEmbauche:         excel.employee.dateEmbauche         || db.employee.dateEmbauche,
+      direction:            excel.employee.direction            || db.employee.direction,
+      service:              excel.employee.service              || db.employee.service,
+      posteActuel:          excel.employee.posteActuel          || db.employee.posteActuel,
+      anamnese:             db.employee.anamnese,
+      decisionsImportantes: db.employee.decisionsImportantes,
+    },
+    antecedents: db.antecedents,
+    restrictions: db.restrictions,
+    expertises:  db.expertises,
+    // Merge visits: DB + Excel, deduplicate by date
+    visites: [
+      ...db.visites,
+      ...excel.visites.filter(
+        (ev) => !db.visites.some((dv) => dv.dateVisite === ev.dateVisite)
+      ),
+    ].sort((a, b) => a.dateVisite.localeCompare(b.dateVisite)),
+  };
+}
+
+/* ── Component ───────────────────────────────────────────────────────────── */
 export default function GenererFiches() {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [matricules, setMatricules] = useState<string[]>([]);
-  const [statuses, setStatuses] = useState<MatriculeStatus[]>([]);
-  const [generating, setGenerating] = useState(false);
-  const [done, setDone] = useState(false);
 
-  const setStatus = (matricule: string, patch: Partial<MatriculeStatus>) =>
-    setStatuses((prev) => prev.map((s) => s.matricule === matricule ? { ...s, ...patch } : s));
+  const [dragging, setDragging]   = useState(false);
+  const [fileName, setFileName]   = useState<string | null>(null);
+  const [headers, setHeaders]     = useState<string[]>([]);
+  const [rows, setRows]           = useState<RawRow[]>([]);
+  const [colMap, setColMap]       = useState<ColMap>({} as ColMap);
+  const [showMap, setShowMap]     = useState(false);
+  const [enrichDB, setEnrichDB]   = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [agentCount, setAgentCount] = useState(0);
+  const [done, setDone]           = useState(false);
 
   const parseFile = useCallback((file: File) => {
     setFileName(file.name);
     setDone(false);
-    setStatuses([]);
+    setAgentCount(0);
     const reader = new FileReader();
     reader.onload = (e) => {
       const wb = XLSX.read(e.target?.result, { type: "array", cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "", raw: false });
-      const mats = extractMatricules(rows);
-      if (mats.length === 0) {
-        toast({ title: "Matricules introuvables", description: "Vérifiez que la colonne s'appelle Mle ou Matricule.", variant: "destructive" });
+      const parsed = XLSX.utils.sheet_to_json<RawRow>(ws, { defval: "", raw: false });
+      if (parsed.length === 0) {
+        toast({ title: "Fichier vide", variant: "destructive" });
         return;
       }
-      setMatricules(mats);
-      setStatuses(mats.map((m) => ({ matricule: m, status: "pending" })));
+      const hdrs = Object.keys(parsed[0]);
+      setHeaders(hdrs);
+      setRows(parsed);
+      const mapped = autoMap(hdrs);
+      setColMap(mapped);
+      // Count unique agents
+      const mats = new Set(
+        parsed.map((r) => (mapped.matricule ? String(r[mapped.matricule] ?? "") : "").trim()).filter(Boolean)
+      );
+      setAgentCount(mats.size);
     };
     reader.readAsArrayBuffer(file);
   }, [toast]);
@@ -73,60 +200,74 @@ export default function GenererFiches() {
     if (file) parseFile(file);
   }, [parseFile]);
 
+  // Recount when colMap changes
+  const updateMap = (key: TargetField, col: string) => {
+    setColMap((prev) => {
+      const next = { ...prev, [key]: col };
+      if (key === "matricule") {
+        const mats = new Set(
+          rows.map((r) => (col ? String(r[col] ?? "") : "").trim()).filter(Boolean)
+        );
+        setAgentCount(mats.size);
+      }
+      return next;
+    });
+  };
+
   const generate = async () => {
-    if (matricules.length === 0) return;
+    if (!colMap.matricule) {
+      toast({ title: "Colonne Matricule manquante", description: "Choisissez la colonne Matricule.", variant: "destructive" });
+      return;
+    }
     setGenerating(true);
     setDone(false);
 
-    const fiches: FicheData[] = [];
+    let fiches = buildFichesFromExcel(rows, colMap);
 
-    for (const mat of matricules) {
-      setStatus(mat, { status: "loading" });
-      try {
-        const fiche = await fetchFiche(mat);
-        fiches.push(fiche);
-        setStatus(mat, { status: "ok" });
-      } catch (err) {
-        setStatus(mat, { status: "error", message: `Introuvable` });
+    if (enrichDB) {
+      const enriched: FicheData[] = [];
+      for (const fiche of fiches) {
+        const db = await fetchFicheFromDB(fiche.employee.matricule);
+        enriched.push(db ? mergeWithDB(fiche, db) : fiche);
       }
+      fiches = enriched;
     }
 
     if (fiches.length === 0) {
-      toast({ title: "Aucune fiche générée", description: "Aucun matricule trouvé dans la base de données.", variant: "destructive" });
+      toast({ title: "Aucun agent trouvé", description: "Vérifiez la colonne Matricule.", variant: "destructive" });
       setGenerating(false);
       return;
     }
 
     try {
       const blob = await pdf(<FicheDocument fiches={fiches} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const name = fiches.length === 1
-        ? `fiche_${fiches[0].employee.matricule}_${fiches[0].employee.nom}.pdf`
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = fiches.length === 1
+        ? `fiche_${fiches[0].employee.matricule}.pdf`
         : `fiches_medicales_${new Date().toISOString().slice(0, 10)}.pdf`;
-      a.download = name;
       a.click();
       URL.revokeObjectURL(url);
       setDone(true);
-      toast({ title: `${fiches.length} fiche(s) générée(s) avec succès` });
+      toast({ title: `${fiches.length} fiche(s) générée(s) ✓` });
     } catch (err) {
+      console.error(err);
       toast({ title: "Erreur de génération PDF", variant: "destructive" });
     }
 
     setGenerating(false);
   };
 
-  const ok = statuses.filter((s) => s.status === "ok").length;
-  const errors = statuses.filter((s) => s.status === "error").length;
-  const hasFile = matricules.length > 0;
+  const hasFile = rows.length > 0;
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
+      {/* Title */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Générer Fiches Techniques</h1>
+        <h1 className="text-2xl font-bold text-foreground">Générer Fiches Techniques PDF</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Importez un fichier Excel contenant les matricules pour générer les fiches médicales en PDF
+          Importez le tableau Excel — une fiche sera générée par agent avec toutes ses visites
         </p>
       </div>
 
@@ -154,7 +295,7 @@ export default function GenererFiches() {
             <div className="text-center">
               <p className="font-semibold text-foreground">{fileName}</p>
               <p className="text-sm text-muted-foreground">
-                {matricules.length} matricule(s) détecté(s) — cliquez pour changer
+                {rows.length} ligne(s) — {agentCount} agent(s) unique(s) — cliquez pour changer
               </p>
             </div>
           </>
@@ -162,10 +303,8 @@ export default function GenererFiches() {
           <>
             <Upload className="w-10 h-10 text-muted-foreground" />
             <div className="text-center">
-              <p className="font-semibold text-foreground">Déposez le fichier Excel ici</p>
-              <p className="text-sm text-muted-foreground">
-                La colonne matricule doit s'appeler <strong>Mle</strong> ou <strong>Matricule</strong>
-              </p>
+              <p className="font-semibold text-foreground">Déposez le tableau Excel ici</p>
+              <p className="text-sm text-muted-foreground">Registre VM ou tout tableau contenant les agents et leurs visites</p>
             </div>
           </>
         )}
@@ -173,57 +312,95 @@ export default function GenererFiches() {
 
       {hasFile && (
         <>
-          {/* Matricule list */}
-          <div className="bg-card border border-card-border rounded-xl p-5 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold text-foreground">
-                  {matricules.length} matricule(s) à traiter
-                </h2>
-              </div>
-              {done && (
-                <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                  <CheckCircle className="w-3.5 h-3.5" /> Téléchargement réussi
-                </span>
-              )}
-            </div>
+          {/* Column mapping */}
+          <div className="bg-card border border-border rounded-xl mb-5">
+            <button
+              className="w-full flex items-center justify-between px-5 py-3.5 text-sm font-semibold text-foreground"
+              onClick={() => setShowMap((v) => !v)}
+            >
+              <span className="flex items-center gap-2">
+                <Table2 className="w-4 h-4 text-muted-foreground" />
+                Correspondance des colonnes
+              </span>
+              {showMap ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
 
-            <div className="grid grid-cols-3 gap-2 max-h-56 overflow-y-auto">
-              {statuses.map(({ matricule, status, message }) => (
-                <div
-                  key={matricule}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm border",
-                    status === "ok" && "bg-green-50 border-green-200 text-green-800",
-                    status === "error" && "bg-red-50 border-red-200 text-red-700",
-                    status === "loading" && "bg-blue-50 border-blue-200 text-blue-700",
-                    status === "pending" && "bg-muted/30 border-border text-muted-foreground",
-                  )}
-                >
-                  {status === "ok" && <CheckCircle className="w-3.5 h-3.5 shrink-0" />}
-                  {status === "error" && <XCircle className="w-3.5 h-3.5 shrink-0" />}
-                  {status === "loading" && <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />}
-                  {status === "pending" && <FileText className="w-3.5 h-3.5 shrink-0" />}
-                  <span className="font-mono text-xs truncate" title={message}>{matricule}</span>
+            {showMap && (
+              <div className="px-5 pb-5 border-t border-border">
+                <p className="text-xs text-muted-foreground mt-3 mb-4">
+                  La détection est automatique. Corrigez si nécessaire.
+                </p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  {TARGETS.map(({ key, label, required }) => (
+                    <div key={key}>
+                      <label className="text-xs font-medium text-foreground mb-1 block">
+                        {label}{required && <span className="text-red-500 ml-1">*</span>}
+                      </label>
+                      <select
+                        className="w-full text-xs border border-border rounded-md px-2 py-1.5 bg-background text-foreground"
+                        value={colMap[key] ?? ""}
+                        onChange={(e) => updateMap(key, e.target.value)}
+                      >
+                        <option value="">— Ignorer —</option>
+                        {headers.map((h) => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            {(ok > 0 || errors > 0) && !generating && (
-              <div className="mt-3 pt-3 border-t border-border flex gap-4 text-xs text-muted-foreground">
-                <span className="text-green-600 font-medium">{ok} trouvé(s)</span>
-                {errors > 0 && <span className="text-red-500 font-medium">{errors} introuvable(s)</span>}
               </div>
             )}
           </div>
 
-          {/* Generate button */}
+          {/* Enrich from DB toggle */}
+          <div className="bg-card border border-border rounded-xl px-5 py-4 mb-6 flex items-start gap-3">
+            <div
+              className={cn(
+                "relative mt-0.5 w-10 h-5 rounded-full cursor-pointer transition-colors shrink-0",
+                enrichDB ? "bg-primary" : "bg-muted"
+              )}
+              onClick={() => setEnrichDB((v) => !v)}
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                  enrichDB ? "translate-x-5" : "translate-x-0"
+                )}
+              />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                <Database className="w-3.5 h-3.5" />
+                Enrichir depuis la base de données
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Si l'agent existe dans la base, ajoute les ATCD, Anamnèse, Décisions importantes et Expertises déjà enregistrées
+              </p>
+            </div>
+          </div>
+
+          {/* Summary + Generate */}
+          <div className="bg-muted/30 border border-border rounded-xl px-5 py-4 mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Users className="w-5 h-5 text-primary" />
+              <div>
+                <p className="font-semibold text-foreground text-sm">{agentCount} agent(s) détecté(s)</p>
+                <p className="text-xs text-muted-foreground">{rows.length} ligne(s) au total dans le tableau</p>
+              </div>
+            </div>
+            {done && (
+              <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                <CheckCircle className="w-3.5 h-3.5" /> PDF téléchargé
+              </span>
+            )}
+          </div>
+
           <div className="flex gap-3">
             <Button
               onClick={generate}
-              disabled={generating}
-              className="gap-2 min-w-52"
+              disabled={generating || agentCount === 0}
+              className="gap-2 min-w-56"
             >
               {generating ? (
                 <>
@@ -233,20 +410,24 @@ export default function GenererFiches() {
               ) : (
                 <>
                   <Download className="w-4 h-4" />
-                  Générer {matricules.length} fiche(s) PDF
+                  Générer {agentCount} fiche(s) PDF
                 </>
               )}
             </Button>
             <Button
               variant="outline"
+              className="gap-2"
               onClick={() => {
                 setFileName(null);
-                setMatricules([]);
-                setStatuses([]);
+                setRows([]);
+                setHeaders([]);
+                setColMap({} as ColMap);
+                setAgentCount(0);
                 setDone(false);
                 if (fileRef.current) fileRef.current.value = "";
               }}
             >
+              <RefreshCw className="w-3.5 h-3.5" />
               Réinitialiser
             </Button>
           </div>
