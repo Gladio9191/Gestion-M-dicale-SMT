@@ -81,9 +81,13 @@ export type FicheData = {
   expertises: Array<{ typeExpertise: string; dateExpertise?: string | null; resultat?: string | null; notes?: string | null }>;
   visites: Array<{
     dateVisite: string; typeVisite?: string | null;
+    risque?: string | null;
     motif?: string | null;
     examensCliniques?: string | null; observations?: string | null;
-    orientation?: string | null;
+    orientation?: string | null;       // from Excel import
+    orientationSoins?: string | null;  // from DB
+    examenRadio?: string | null;
+    bilan?: string | null;
     recommandations?: string | null; decisionAptitude?: string | null;
   }>;
   restrictionsMedicales?: RestrictionEntry[];

@@ -176,28 +176,42 @@ function buildFiche(data: FicheData, isFirst: boolean): (Paragraph | Table)[] {
   }
 
   /* Visits table */
+  out.push(sectionTitle("Historique des Visites Médicales (VM)", "2C3E50", "FFFFFF"));
+  out.push(spacer());
   const MIN_ROWS = 12;
   const empties = Math.max(0, MIN_ROWS - visites.length);
+  // column widths: Date(11) | Type VM(13) | Examens(25) | Observations(19) | Orient/Radio/Bilan(18) | Décision(14)
+  const COL_W = [11, 13, 25, 19, 18, 14] as const;
   out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NONE, rows: [
     new TableRow({ tableHeader: true, children: [
-      hCell("Date\n& Décision", 14),
-      hCell("Motif", 16),
-      hCell("Examens cliniques et/ou explorations", 34),
-      hCell("Observations & Orientation", 22),
-      hCell("Décision médicale", 14),
+      hCell("Date VM",         COL_W[0]),
+      hCell("Type de visite",  COL_W[1]),
+      hCell("Examens cliniques / Explorations", COL_W[2]),
+      hCell("Observations",    COL_W[3]),
+      hCell("Orientation / Radio / Bilan", COL_W[4]),
+      hCell("Décision médicale", COL_W[5]),
     ]}),
-    ...visites.map((v) => new TableRow({ height: { value: 480, rule: "atLeast" }, children: [
-      new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([N(v.dateVisite, 16)], { left: 60 })] }),
-      new TableCell({ width: { size: 16, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([N(v.motif ?? "", 16)], { left: 60 })] }),
-      new TableCell({ width: { size: 34, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([N(v.examensCliniques ?? "", 16)], { left: 60 })] }),
-      new TableCell({ width: { size: 22, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [
-        p([N(v.observations ?? "", 16)], { left: 60 }),
-        ...(v.orientation ? [p([I(`↳ ${v.orientation}`, 14)], { left: 60 })] : []),
-        ...(v.recommandations ? [p([I(v.recommandations, 14)], { left: 60 })] : []),
-      ]}),
-      new TableCell({ width: { size: 14, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([B(v.decisionAptitude ?? "", 15)], { left: 60 })] }),
-    ]})),
-    ...Array.from({ length: empties }, () => new TableRow({ height: { value: 480, rule: "atLeast" }, children: [14, 16, 34, 22, 14].map((w) => new TableCell({ width: { size: w, type: WidthType.PERCENTAGE }, borders: THIN, children: [p([N(" ", 16)], {})] })) })),
+    ...visites.map((v) => {
+      const orientDisplay = v.orientationSoins ?? v.orientation ?? "";
+      const extraLines: Paragraph[] = [];
+      if (v.examenRadio)  extraLines.push(p([B("Radio : ", 14), N(v.examenRadio,  14)], { left: 60 }));
+      if (v.bilan)        extraLines.push(p([B("Bilan : ", 14), N(v.bilan,        14)], { left: 60 }));
+      if (v.recommandations) extraLines.push(p([I(`↳ ${v.recommandations}`, 13)], { left: 60 }));
+      const obsLines: Paragraph[] = [p([N(v.observations ?? "", 15)], { left: 60 })];
+      if (v.risque) obsLines.push(p([B("Risque : ", 14), N(v.risque, 14)], { left: 60 }));
+      return new TableRow({ height: { value: 520, rule: "atLeast" }, children: [
+        new TableCell({ width: { size: COL_W[0], type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([B(v.dateVisite, 15)], { left: 60 })] }),
+        new TableCell({ width: { size: COL_W[1], type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([N(v.typeVisite ?? v.motif ?? "", 14)], { left: 60 })] }),
+        new TableCell({ width: { size: COL_W[2], type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([N(v.examensCliniques ?? "", 15)], { left: 60 })] }),
+        new TableCell({ width: { size: COL_W[3], type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: obsLines }),
+        new TableCell({ width: { size: COL_W[4], type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [
+          p([N(orientDisplay, 14)], { left: 60 }),
+          ...extraLines,
+        ]}),
+        new TableCell({ width: { size: COL_W[5], type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([B(v.decisionAptitude ?? "", 15)], { left: 60 })] }),
+      ]});
+    }),
+    ...Array.from({ length: empties }, () => new TableRow({ height: { value: 480, rule: "atLeast" }, children: COL_W.map((w) => new TableCell({ width: { size: w, type: WidthType.PERCENTAGE }, borders: THIN, children: [p([N(" ", 16)], {})] })) })),
   ]}));
 
   /* Notes */
