@@ -6,6 +6,7 @@ import {
   BarChart2, Home, Settings, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import TopBar from "@/components/TopBar";
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 type NavItem = { href: string; label: string; icon: React.ElementType; exact?: boolean };
@@ -91,7 +92,7 @@ function PrimaryBtn({ group, active, onClick }: {
       onClick={onClick}
       title={group.label}
       className={cn(
-        "relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-200 group",
+        "primary-btn relative w-11 h-11 rounded-2xl flex items-center justify-center group",
         active ? "shadow-md" : "hover:bg-white/10"
       )}
       style={active ? { backgroundColor: group.color } : {}}
@@ -111,7 +112,7 @@ function SecLink({ item, active, muted }: { item: NavItem; active: boolean; mute
     <Link
       href={item.href}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 group",
+        "sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium group",
         active
           ? "text-white shadow-sm"
           : muted
@@ -120,7 +121,7 @@ function SecLink({ item, active, muted }: { item: NavItem; active: boolean; mute
       )}
       style={active ? { backgroundColor: "var(--active-color)" } : {}}
     >
-      <Icon className={cn("w-4 h-4 shrink-0", active ? "text-white" : muted ? "text-slate-300" : "text-slate-400 group-hover:text-slate-600")} />
+      <Icon className={cn("w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110", active ? "text-white" : muted ? "text-slate-300" : "text-slate-400 group-hover:text-slate-600")} />
       <span className="flex-1 truncate">{item.label}</span>
       {active && <ChevronRight className="w-3 h-3 text-white/60 shrink-0" />}
     </Link>
@@ -224,7 +225,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content ─────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto min-w-0">{children}</main>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopBar />
+        <main className="flex-1 overflow-auto">{children}</main>
+      </div>
     </div>
   );
 }
