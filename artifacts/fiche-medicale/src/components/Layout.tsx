@@ -254,19 +254,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        {/* ── Pinned bottom: Paramètres + jelly + Clock + jelly + Calendar ── */}
+        {/* ── Pinned bottom: Clock + jelly + Calendar + jelly + Paramètres ── */}
         <div className="shrink-0">
-
-          {/* Paramètres */}
-          <div className="px-3 pb-1">
-            <NavLink
-              item={{ href: "#", label: "Paramètres", icon: Settings }}
-              active={false}
-            />
-          </div>
-
-          {/* Jelly separator */}
-          <JellySep />
 
           {/* Clock widget */}
           <ClockWidget now={now} />
@@ -276,6 +265,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Calendar widget */}
           <CalendarWidget />
+
+          {/* Jelly separator */}
+          <JellySep />
+
+          {/* Paramètres */}
+          <div className="px-3 pb-3">
+            <NavLink
+              item={{ href: "#", label: "Paramètres", icon: Settings }}
+              active={false}
+            />
+          </div>
 
         </div>
       </aside>
