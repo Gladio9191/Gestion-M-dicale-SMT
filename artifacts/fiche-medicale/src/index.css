@@ -73,49 +73,60 @@
   --badge-outline: rgba(0,0,0, .05);
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0, .03);
-  --elevate-2: rgba(0,0,0, .08);
+  --elevate-2: rgba(0,0,0, .07);
 
-  --background: 160 20% 98%;
-  --foreground: 160 30% 15%;
-  --border: 160 15% 85%;
+  /* ── Main content area: clean slate-white ── */
+  --background: 214 32% 96%;
+  --foreground: 222 47% 12%;
+  --border: 214 20% 88%;
+
+  /* ── Cards ── */
   --card: 0 0% 100%;
-  --card-foreground: 160 30% 15%;
-  --card-border: 160 15% 90%;
-  --sidebar: 160 15% 96%;
-  --sidebar-foreground: 160 30% 25%;
-  --sidebar-border: 160 15% 90%;
-  --sidebar-primary: 180 60% 30%;
+  --card-foreground: 222 47% 12%;
+  --card-border: 214 20% 91%;
+
+  /* ── Sidebar: deep navy ── */
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 30% 88%;
+  --sidebar-border: 222 40% 17%;
+  --sidebar-primary: 217 91% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 160 20% 90%;
-  --sidebar-accent-foreground: 160 30% 20%;
-  --sidebar-ring: 180 60% 30%;
+  --sidebar-accent: 222 40% 18%;
+  --sidebar-accent-foreground: 210 30% 90%;
+  --sidebar-ring: 217 91% 55%;
+
+  /* ── Popovers ── */
   --popover: 0 0% 100%;
-  --popover-foreground: 160 30% 15%;
-  --popover-border: 160 15% 90%;
-  
-  --primary: 180 75% 25%;
+  --popover-foreground: 222 47% 12%;
+  --popover-border: 214 20% 91%;
+
+  /* ── Primary action: rich navy blue ── */
+  --primary: 222 60% 28%;
   --primary-foreground: 0 0% 100%;
-  
-  --secondary: 160 20% 90%;
-  --secondary-foreground: 160 40% 25%;
-  
-  --muted: 160 15% 92%;
-  --muted-foreground: 160 20% 45%;
-  
-  --accent: 180 40% 90%;
-  --accent-foreground: 180 60% 25%;
-  
-  --destructive: 0 70% 50%;
+
+  /* ── Secondary / muted ── */
+  --secondary: 214 25% 92%;
+  --secondary-foreground: 222 40% 25%;
+
+  --muted: 214 22% 93%;
+  --muted-foreground: 215 20% 48%;
+
+  /* ── Accent: slate blue ── */
+  --accent: 217 40% 90%;
+  --accent-foreground: 222 60% 28%;
+
+  --destructive: 0 72% 50%;
   --destructive-foreground: 0 0% 100%;
-  
-  --input: 160 20% 85%;
-  --ring: 180 60% 30%;
-  
-  --chart-1: 180 75% 30%;
-  --chart-2: 160 40% 50%;
-  --chart-3: 190 60% 40%;
-  --chart-4: 150 30% 60%;
-  --chart-5: 200 50% 45%;
+
+  --input: 214 20% 87%;
+  --ring: 217 91% 55%;
+
+  /* ── Charts: navy/slate family ── */
+  --chart-1: 217 80% 45%;
+  --chart-2: 199 60% 48%;
+  --chart-3: 234 55% 55%;
+  --chart-4: 160 45% 45%;
+  --chart-5: 32 80% 55%;
 
   --app-font-sans: 'Plus Jakarta Sans', sans-serif;
   --app-font-serif: 'IBM Plex Sans', sans-serif;
