@@ -108,7 +108,7 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     pdf = FPDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
     pdf.set_margins(20, 20, 20)
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=False)
 
     W = 170   # usable width (210 - 2*20)
 
@@ -160,8 +160,6 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
             for a in antecedents
         ) if antecedents else ""
         txt_section("ATCD NOTABLES :", atcd)
-        txt_section("ANAMNESE :", e.get("anamnese") or "")
-        txt_section("DECISIONS IMPORTANTES :", e.get("decisionsImportantes") or "")
 
         # EXPERTISE
         pdf.set_font("Helvetica", "BU", 10)
@@ -179,8 +177,6 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
                      new_x="LMARGIN", new_y="NEXT")
     else:
         txt_section("ATCD NOTABLES :", "")
-        txt_section("ANAMNESE :", "")
-        txt_section("DECISIONS IMPORTANTES :", "")
         pdf.set_font("Helvetica", "BU", 10)
         pdf.cell(W, 6, "EXPERTISE :", new_x="LMARGIN", new_y="NEXT")
         for exp_type in ["OPTHALMO", "PSY", "ORL", "VERTIGE"]:
@@ -189,12 +185,13 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
             pdf.set_font("Helvetica", "", 10)
             pdf.cell(W - 45, 6, "", border=0, new_x="LMARGIN", new_y="NEXT")
 
-    pdf.ln(5)
+    pdf.ln(4)
 
-    # ── Visits table ───────────────────────────────────────────────────────────
+    # ── Visits table — sized to keep everything on one A4 page ─────────────────
+    # Budget: 257mm usable − 116mm fixed content = 141mm ÷ 7mm/row ≈ 18 rows max
     C1, C2, C3 = 32, 88, 50     # col widths (total = 170)
     ROW_H      = 7
-    MIN_ROWS   = 40              # empty rows to leave for future visits
+    MIN_ROWS   = 18              # fits exactly on one A4 page
 
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(220, 220, 220)
