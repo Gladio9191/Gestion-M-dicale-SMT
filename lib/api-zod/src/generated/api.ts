@@ -66,6 +66,44 @@ export const CreateEmployeeBody = zod.object({
 });
 
 /**
+ * @summary Bulk import employees from parsed Excel data
+ */
+export const ImportEmployeesBody = zod.object({
+  employees: zod.array(
+    zod.object({
+      matricule: zod.string(),
+      nom: zod.string(),
+      prenom: zod.string(),
+      dateNaissance: zod.string().nullish(),
+      dateEmbauche: zod.string().nullish(),
+      service: zod.string().nullish(),
+      posteActuel: zod.string().nullish(),
+      anamnese: zod.string().nullish(),
+      decisionsImportantes: zod.string().nullish(),
+      dateVisite: zod.string().nullish(),
+      typeVisite: zod.string().nullish(),
+      decisionAptitude: zod.string().nullish(),
+    }),
+  ),
+  updateExisting: zod.boolean().optional(),
+});
+
+export const ImportEmployeesResponse = zod.object({
+  created: zod.number(),
+  updated: zod.number(),
+  skipped: zod.number(),
+  errors: zod.number(),
+  total: zod.number(),
+  details: zod.array(
+    zod.object({
+      matricule: zod.string(),
+      status: zod.enum(["created", "updated", "skipped", "error"]),
+      message: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
  * @summary Get employee by matricule
  */
 export const GetEmployeeParams = zod.object({

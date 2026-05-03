@@ -286,4 +286,109 @@ router.post("/employees/:matricule/expertises", async (req, res) => {
   return res.status(201).json({ ...expertise, createdAt: expertise.createdAt.toISOString() });
 });
 
+router.post("/employees/import", async (req, res) => {
+  const { employees, updateExisting = false } = req.body as {
+    employees: Array<{
+      matricule: string;
+      nom: string;
+      prenom: string;
+      dateNaissance?: string | null;
+      dateEmbauche?: string | null;
+      service?: string | null;
+      posteActuel?: string | null;
+      anamnese?: string | null;
+      decisionsImportantes?: string | null;
+      dateVisite?: string | null;
+      typeVisite?: string | null;
+      decisionAptitude?: string | null;
+    }>;
+    updateExisting?: boolean;
+  };
+
+  if (!Array.isArray(employees) || employees.length === 0) {
+    return res.status(400).json({ error: "Aucune donnée à importer" });
+  }
+
+  const details: Array<{ matricule: string; status: string; message?: string | null }> = [];
+  let created = 0, updated = 0, skipped = 0, errors = 0;
+
+  for (const rec of employees) {
+    if (!rec.matricule || !rec.nom || !rec.prenom) {
+      details.push({ matricule: rec.matricule ?? "?", status: "error", message: "Matricule, nom et prénom sont obligatoires" });
+      errors++;
+      continue;
+    }
+    try {
+      const [existing] = await db
+        .select({ id: employeesTable.id })
+        .from(employeesTable)
+        .where(eq(employeesTable.matricule, rec.matricule.trim()))
+        .limit(1);
+
+      let employeeId: number;
+
+      if (existing) {
+        if (updateExisting) {
+          await db
+            .update(employeesTable)
+            .set({
+              nom: rec.nom.trim(),
+              prenom: rec.prenom.trim(),
+              dateNaissance: rec.dateNaissance?.trim() || null,
+              dateEmbauche: rec.dateEmbauche?.trim() || null,
+              service: rec.service?.trim() || null,
+              posteActuel: rec.posteActuel?.trim() || null,
+              anamnese: rec.anamnese?.trim() || null,
+              decisionsImportantes: rec.decisionsImportantes?.trim() || null,
+              updatedAt: new Date(),
+            })
+            .where(eq(employeesTable.matricule, rec.matricule.trim()));
+          employeeId = existing.id;
+          details.push({ matricule: rec.matricule, status: "updated", message: null });
+          updated++;
+        } else {
+          details.push({ matricule: rec.matricule, status: "skipped", message: "Matricule déjà existant" });
+          skipped++;
+          continue;
+        }
+      } else {
+        const [inserted] = await db
+          .insert(employeesTable)
+          .values({
+            matricule: rec.matricule.trim(),
+            nom: rec.nom.trim(),
+            prenom: rec.prenom.trim(),
+            dateNaissance: rec.dateNaissance?.trim() || null,
+            dateEmbauche: rec.dateEmbauche?.trim() || null,
+            service: rec.service?.trim() || null,
+            posteActuel: rec.posteActuel?.trim() || null,
+            anamnese: rec.anamnese?.trim() || null,
+            decisionsImportantes: rec.decisionsImportantes?.trim() || null,
+          })
+          .returning({ id: employeesTable.id });
+        employeeId = inserted.id;
+        details.push({ matricule: rec.matricule, status: "created", message: null });
+        created++;
+      }
+
+      if (rec.dateVisite?.trim()) {
+        const aptitude = ["APTE", "INAPTE", "APTE_SOUS_RESERVE"].includes(rec.decisionAptitude ?? "")
+          ? (rec.decisionAptitude as "APTE" | "INAPTE" | "APTE_SOUS_RESERVE")
+          : null;
+        await db.insert(visitesTable).values({
+          employeeId,
+          dateVisite: rec.dateVisite.trim(),
+          typeVisite: rec.typeVisite?.trim() || null,
+          decisionAptitude: aptitude,
+        });
+      }
+    } catch (err) {
+      details.push({ matricule: rec.matricule, status: "error", message: String(err) });
+      errors++;
+    }
+  }
+
+  return res.json({ created, updated, skipped, errors, total: employees.length, details });
+});
+
 export default router;

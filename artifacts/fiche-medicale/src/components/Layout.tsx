@@ -1,11 +1,12 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Plus, Activity } from "lucide-react";
+import { LayoutDashboard, Users, Plus, Activity, FileUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/employees", label: "Employés", icon: Users },
   { href: "/employees/new", label: "Nouvel employé", icon: Plus },
+  { href: "/import", label: "Import Excel", icon: FileUp },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

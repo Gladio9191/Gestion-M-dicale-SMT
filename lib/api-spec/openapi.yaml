@@ -87,6 +87,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/Employee"
 
+  /employees/import:
+    post:
+      operationId: importEmployees
+      tags: [import]
+      summary: Bulk import employees from parsed Excel data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportEmployeesBody"
+      responses:
+        "200":
+          description: Import results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+
   /employees/{matricule}:
     get:
       operationId: getEmployee
@@ -823,3 +842,84 @@ components:
         count:
           type: integer
       required: [decision, count]
+
+    ImportEmployeeRecord:
+      type: object
+      properties:
+        matricule:
+          type: string
+        nom:
+          type: string
+        prenom:
+          type: string
+        dateNaissance:
+          type: string
+          nullable: true
+        dateEmbauche:
+          type: string
+          nullable: true
+        service:
+          type: string
+          nullable: true
+        posteActuel:
+          type: string
+          nullable: true
+        anamnese:
+          type: string
+          nullable: true
+        decisionsImportantes:
+          type: string
+          nullable: true
+        dateVisite:
+          type: string
+          nullable: true
+        typeVisite:
+          type: string
+          nullable: true
+        decisionAptitude:
+          type: string
+          nullable: true
+      required: [matricule, nom, prenom]
+
+    ImportEmployeesBody:
+      type: object
+      properties:
+        employees:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportEmployeeRecord"
+        updateExisting:
+          type: boolean
+      required: [employees]
+
+    ImportRowResult:
+      type: object
+      properties:
+        matricule:
+          type: string
+        status:
+          type: string
+          enum: [created, updated, skipped, error]
+        message:
+          type: string
+          nullable: true
+      required: [matricule, status]
+
+    ImportResult:
+      type: object
+      properties:
+        created:
+          type: integer
+        updated:
+          type: integer
+        skipped:
+          type: integer
+        errors:
+          type: integer
+        total:
+          type: integer
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRowResult"
+      required: [created, updated, skipped, errors, total, details]

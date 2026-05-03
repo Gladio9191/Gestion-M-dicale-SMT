@@ -31,6 +31,8 @@ import type {
   FicheTechnique,
   GetRecentVisitesParams,
   HealthStatus,
+  ImportEmployeesBody,
+  ImportResult,
   ListEmployeesParams,
   RecentVisite,
   Restriction,
@@ -303,6 +305,92 @@ export const useCreateEmployee = <
   TContext
 > => {
   return useMutation(getCreateEmployeeMutationOptions(options));
+};
+
+/**
+ * @summary Bulk import employees from parsed Excel data
+ */
+export const getImportEmployeesUrl = () => {
+  return `/api/employees/import`;
+};
+
+export const importEmployees = async (
+  importEmployeesBody: ImportEmployeesBody,
+  options?: RequestInit,
+): Promise<ImportResult> => {
+  return customFetch<ImportResult>(getImportEmployeesUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(importEmployeesBody),
+  });
+};
+
+export const getImportEmployeesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importEmployees>>,
+    TError,
+    { data: BodyType<ImportEmployeesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importEmployees>>,
+  TError,
+  { data: BodyType<ImportEmployeesBody> },
+  TContext
+> => {
+  const mutationKey = ["importEmployees"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importEmployees>>,
+    { data: BodyType<ImportEmployeesBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importEmployees(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportEmployeesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importEmployees>>
+>;
+export type ImportEmployeesMutationBody = BodyType<ImportEmployeesBody>;
+export type ImportEmployeesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Bulk import employees from parsed Excel data
+ */
+export const useImportEmployees = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importEmployees>>,
+    TError,
+    { data: BodyType<ImportEmployeesBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof importEmployees>>,
+  TError,
+  { data: BodyType<ImportEmployeesBody> },
+  TContext
+> => {
+  return useMutation(getImportEmployeesMutationOptions(options));
 };
 
 /**

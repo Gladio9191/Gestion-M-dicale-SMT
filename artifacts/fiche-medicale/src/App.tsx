@@ -8,6 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import EmployeeList from "@/pages/EmployeeList";
 import NewEmployee from "@/pages/NewEmployee";
 import FicheTechnique from "@/pages/FicheTechnique";
+import ImportExcel from "@/pages/ImportExcel";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -22,6 +23,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/employees" component={EmployeeList} />
         <Route path="/employees/new" component={NewEmployee} />
+        <Route path="/import" component={ImportExcel} />
         <Route path="/employees/:matricule" component={FicheTechnique} />
         <Route component={NotFound} />
       </Switch>

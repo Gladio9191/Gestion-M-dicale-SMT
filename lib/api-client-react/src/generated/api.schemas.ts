@@ -248,6 +248,51 @@ export interface AptitudeStat {
   count: number;
 }
 
+export interface ImportEmployeeRecord {
+  matricule: string;
+  nom: string;
+  prenom: string;
+  dateNaissance?: string | null;
+  dateEmbauche?: string | null;
+  service?: string | null;
+  posteActuel?: string | null;
+  anamnese?: string | null;
+  decisionsImportantes?: string | null;
+  dateVisite?: string | null;
+  typeVisite?: string | null;
+  decisionAptitude?: string | null;
+}
+
+export interface ImportEmployeesBody {
+  employees: ImportEmployeeRecord[];
+  updateExisting?: boolean;
+}
+
+export type ImportRowResultStatus =
+  (typeof ImportRowResultStatus)[keyof typeof ImportRowResultStatus];
+
+export const ImportRowResultStatus = {
+  created: "created",
+  updated: "updated",
+  skipped: "skipped",
+  error: "error",
+} as const;
+
+export interface ImportRowResult {
+  matricule: string;
+  status: ImportRowResultStatus;
+  message?: string | null;
+}
+
+export interface ImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: number;
+  total: number;
+  details: ImportRowResult[];
+}
+
 export type ListEmployeesParams = {
   search?: string;
   service?: string;
