@@ -15,6 +15,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 type LatestVisite = {
   dateVisite: string;
   typeVisite: string | null;
+  typeTheorique: string | null;
   risque: string | null;
   examensCliniques: string | null;
   observations: string | null;
@@ -345,9 +346,27 @@ export default function RegistreActivites() {
                     <td className="px-3 py-2.5 min-w-[90px]">
                       <Cell v={row.latestVisite?.risque ?? null} />
                     </td>
-                    {/* VMC — type de visite */}
-                    <td className="px-3 py-2.5">
-                      <VisitTypeBadge t={row.latestVisite?.typeVisite ?? null} />
+                    {/* VMC — type théorique calculé + type saisi */}
+                    <td className="px-3 py-2.5 min-w-[110px]">
+                      {row.latestVisite ? (
+                        <div className="flex flex-col gap-1">
+                          {/* Computed type — always shown */}
+                          <div className="flex items-center gap-1">
+                            <VisitTypeBadge t={row.latestVisite.typeTheorique} />
+                            <span className="text-[9px] text-muted-foreground/60">calc.</span>
+                          </div>
+                          {/* Stored type — only if different from computed */}
+                          {row.latestVisite.typeVisite &&
+                           row.latestVisite.typeVisite !== row.latestVisite.typeTheorique && (
+                            <div className="flex items-center gap-1">
+                              <VisitTypeBadge t={row.latestVisite.typeVisite} />
+                              <span className="text-[9px] text-amber-500">saisi</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground/50 text-xs">—</span>
+                      )}
                     </td>
                     {/* Ex. clinique */}
                     <td className="px-3 py-2.5 min-w-[120px]">

@@ -234,6 +234,7 @@ export const GetEmployeeFicheResponse = zod.object({
       employeeId: zod.number(),
       dateVisite: zod.string(),
       typeVisite: zod.string().nullish(),
+      risque: zod.string().nullish(),
       examensCliniques: zod.string().nullish(),
       observations: zod.string().nullish(),
       recommandations: zod.string().nullish(),
@@ -245,6 +246,9 @@ export const GetEmployeeFicheResponse = zod.object({
           zod.literal(null),
         ])
         .nullish(),
+      orientationSoins: zod.string().nullish(),
+      examenRadio: zod.string().nullish(),
+      bilan: zod.string().nullish(),
       createdAt: zod.string(),
     }),
   ),
@@ -262,6 +266,7 @@ export const GetEmployeeVisitesResponseItem = zod.object({
   employeeId: zod.number(),
   dateVisite: zod.string(),
   typeVisite: zod.string().nullish(),
+  risque: zod.string().nullish(),
   examensCliniques: zod.string().nullish(),
   observations: zod.string().nullish(),
   recommandations: zod.string().nullish(),
@@ -273,6 +278,9 @@ export const GetEmployeeVisitesResponseItem = zod.object({
       zod.literal(null),
     ])
     .nullish(),
+  orientationSoins: zod.string().nullish(),
+  examenRadio: zod.string().nullish(),
+  bilan: zod.string().nullish(),
   createdAt: zod.string(),
 });
 export const GetEmployeeVisitesResponse = zod.array(
@@ -289,6 +297,7 @@ export const CreateVisiteParams = zod.object({
 export const CreateVisiteBody = zod.object({
   dateVisite: zod.string(),
   typeVisite: zod.string().nullish(),
+  risque: zod.string().nullish(),
   examensCliniques: zod.string().nullish(),
   observations: zod.string().nullish(),
   recommandations: zod.string().nullish(),
@@ -300,6 +309,9 @@ export const CreateVisiteBody = zod.object({
       zod.literal(null),
     ])
     .nullish(),
+  orientationSoins: zod.string().nullish(),
+  examenRadio: zod.string().nullish(),
+  bilan: zod.string().nullish(),
 });
 
 /**
@@ -312,6 +324,7 @@ export const UpdateVisiteParams = zod.object({
 export const UpdateVisiteBody = zod.object({
   dateVisite: zod.string(),
   typeVisite: zod.string().nullish(),
+  risque: zod.string().nullish(),
   examensCliniques: zod.string().nullish(),
   observations: zod.string().nullish(),
   recommandations: zod.string().nullish(),
@@ -323,6 +336,9 @@ export const UpdateVisiteBody = zod.object({
       zod.literal(null),
     ])
     .nullish(),
+  orientationSoins: zod.string().nullish(),
+  examenRadio: zod.string().nullish(),
+  bilan: zod.string().nullish(),
 });
 
 export const UpdateVisiteResponse = zod.object({
@@ -330,6 +346,7 @@ export const UpdateVisiteResponse = zod.object({
   employeeId: zod.number(),
   dateVisite: zod.string(),
   typeVisite: zod.string().nullish(),
+  risque: zod.string().nullish(),
   examensCliniques: zod.string().nullish(),
   observations: zod.string().nullish(),
   recommandations: zod.string().nullish(),
@@ -341,6 +358,9 @@ export const UpdateVisiteResponse = zod.object({
       zod.literal(null),
     ])
     .nullish(),
+  orientationSoins: zod.string().nullish(),
+  examenRadio: zod.string().nullish(),
+  bilan: zod.string().nullish(),
   createdAt: zod.string(),
 });
 

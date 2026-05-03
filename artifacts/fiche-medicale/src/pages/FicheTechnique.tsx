@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,6 +20,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Plus, Trash2, Pencil, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TYPE THÉORIQUE — même logique que registre.ts
+   Risque A : VMA → VMSle (semestre différent) ou VMC (même sem.) → VMC (3e+)
+   Risque S : toujours VMA
+═══════════════════════════════════════════════════════════════════════════ */
+function computeTypeVisite(
+  risque: string | null,
+  datesAnneeAsc: string[],
+  currentDate: string
+): string {
+  const r = (risque ?? "").trim().toUpperCase();
+  if (r === "S") return "VMA";
+  const idx = datesAnneeAsc.indexOf(currentDate);
+  if (idx <= 0) return "VMA";
+  if (idx === 1) {
+    const semOf = (d: string) => parseInt(d.slice(5, 7)) <= 6 ? 1 : 2;
+    return semOf(datesAnneeAsc[0]) !== semOf(currentDate) ? "VMSle" : "VMC";
+  }
+  return "VMC";
+}
 
 const APTITUDE_LABELS: Record<string, string> = {
   APTE: "Apte",
@@ -101,6 +122,23 @@ export default function FicheTechnique() {
 
   const [expandedVisiteId, setExpandedVisiteId] = useState<number | null>(null);
 
+  /* ── Type théorique suggéré pour le formulaire de nouvelle visite ── */
+  /* Must be above any conditional return (Rules of Hooks) */
+  const suggestedType = useMemo(() => {
+    const date   = visiteForm.dateVisite;
+    const risque = visiteForm.risque ?? "";
+    if (!date) return null;
+    const year = date.slice(0, 4);
+    const existingDates = (fiche?.visites ?? [])
+      .map((v) => v.dateVisite)
+      .filter((d) => d.slice(0, 4) === year)
+      .sort();
+    const allDates = [...existingDates, date].sort().filter(
+      (d, i, arr) => arr.indexOf(d) === i
+    );
+    return computeTypeVisite(risque || null, allDates, date);
+  }, [visiteForm.dateVisite, visiteForm.risque, fiche?.visites]);
+
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
@@ -147,18 +185,36 @@ export default function FicheTechnique() {
   const startEditVisite = (v: typeof visites[0]) => {
     setEditingVisiteId(v.id);
     setVisiteForm({
-      dateVisite: v.dateVisite,
-      typeVisite: v.typeVisite ?? "",
+      dateVisite:       v.dateVisite,
+      typeVisite:       v.typeVisite ?? "",
+      risque:           v.risque ?? "",
       examensCliniques: v.examensCliniques ?? "",
-      observations: v.observations ?? "",
-      recommandations: v.recommandations ?? "",
+      observations:     v.observations ?? "",
+      recommandations:  v.recommandations ?? "",
       decisionAptitude: v.decisionAptitude ?? "",
+      orientationSoins: v.orientationSoins ?? "",
+      examenRadio:      v.examenRadio ?? "",
+      bilan:            v.bilan ?? "",
     });
   };
 
+  type AptitudeVal = "APTE" | "INAPTE" | "APTE_SOUS_RESERVE";
+  const buildVisiteData = () => ({
+    dateVisite:       visiteForm.dateVisite ?? "",
+    typeVisite:       visiteForm.typeVisite || null,
+    risque:           visiteForm.risque || null,
+    examensCliniques: visiteForm.examensCliniques || null,
+    observations:     visiteForm.observations || null,
+    recommandations:  visiteForm.recommandations || null,
+    decisionAptitude: (visiteForm.decisionAptitude as AptitudeVal) || null,
+    orientationSoins: visiteForm.orientationSoins || null,
+    examenRadio:      visiteForm.examenRadio || null,
+    bilan:            visiteForm.bilan || null,
+  });
+
   const saveVisite = (id: number) => {
     updateVisite.mutate(
-      { id, data: { dateVisite: visiteForm.dateVisite ?? "", typeVisite: visiteForm.typeVisite || null, examensCliniques: visiteForm.examensCliniques || null, observations: visiteForm.observations || null, recommandations: visiteForm.recommandations || null, decisionAptitude: (visiteForm.decisionAptitude as "APTE" | "INAPTE" | "APTE_SOUS_RESERVE") || null } },
+      { id, data: buildVisiteData() },
       {
         onSuccess: () => { invalidate(); setEditingVisiteId(null); toast({ title: "Visite mise à jour" }); },
         onError: () => toast({ title: "Erreur", variant: "destructive" }),
@@ -169,7 +225,7 @@ export default function FicheTechnique() {
   const addVisite = () => {
     if (!visiteForm.dateVisite) { toast({ title: "La date est requise", variant: "destructive" }); return; }
     createVisite.mutate(
-      { matricule, data: { dateVisite: visiteForm.dateVisite, typeVisite: visiteForm.typeVisite || null, examensCliniques: visiteForm.examensCliniques || null, observations: visiteForm.observations || null, recommandations: visiteForm.recommandations || null, decisionAptitude: (visiteForm.decisionAptitude as "APTE" | "INAPTE" | "APTE_SOUS_RESERVE") || null } },
+      { matricule, data: buildVisiteData() },
       {
         onSuccess: () => { invalidate(); setShowNewVisite(false); setVisiteForm({}); toast({ title: "Visite ajoutée" }); },
         onError: () => toast({ title: "Erreur", variant: "destructive" }),
@@ -451,21 +507,69 @@ export default function FicheTechnique() {
 
       {/* Visites médicales */}
       <div className="bg-card border border-card-border rounded-xl p-6">
-        <SectionHeader title="Historique des visites médicales" onAdd={() => { setShowNewVisite(true); setVisiteForm({ dateVisite: "", typeVisite: "", examensCliniques: "", observations: "", recommandations: "", decisionAptitude: "" }); }} addLabel="Nouvelle visite" />
+        <SectionHeader title="Historique des visites médicales" onAdd={() => { setShowNewVisite(true); setVisiteForm({ dateVisite: "", typeVisite: "", risque: "", examensCliniques: "", observations: "", recommandations: "", decisionAptitude: "", orientationSoins: "", examenRadio: "", bilan: "" }); }} addLabel="Nouvelle visite" />
 
         {showNewVisite && (
           <div className="mb-4 p-4 border border-border rounded-lg bg-muted/20 space-y-3">
             <h4 className="text-sm font-medium">Nouvelle visite</h4>
+
+            {/* Ligne 1 : Date + Risque */}
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-muted-foreground">Date *</label><Input type="date" value={visiteForm.dateVisite ?? ""} onChange={setV("dateVisite")} /></div>
               <div>
-                <label className="text-xs text-muted-foreground">Type de visite</label>
-                <Input placeholder="Périodique, à la demande..." value={visiteForm.typeVisite ?? ""} onChange={setV("typeVisite")} />
+                <label className="text-xs text-muted-foreground">Date *</label>
+                <Input type="date" value={visiteForm.dateVisite ?? ""} onChange={setV("dateVisite")} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Risque</label>
+                <select className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md" value={visiteForm.risque ?? ""} onChange={setV("risque")}>
+                  <option value="">— Non défini —</option>
+                  <option value="A">A — Agent actif</option>
+                  <option value="S">S — Agent sédentaire</option>
+                </select>
               </div>
             </div>
+
+            {/* Suggestion automatique du type */}
+            {suggestedType && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+                <span className="text-xs text-blue-700 font-medium">Type suggéré :</span>
+                <span className="text-xs font-bold text-blue-800 bg-blue-100 border border-blue-300 px-2 py-0.5 rounded-full">{suggestedType}</span>
+                <button
+                  type="button"
+                  onClick={() => setVisiteForm(f => ({ ...f, typeVisite: suggestedType }))}
+                  className="ml-auto text-xs text-blue-600 hover:text-blue-800 underline font-medium"
+                >
+                  Appliquer
+                </button>
+              </div>
+            )}
+
+            {/* Type de visite (modifiable) */}
+            <div>
+              <label className="text-xs text-muted-foreground">Type de visite (VMC)</label>
+              <Input placeholder="VMA, VMSle, VMC, CA…" value={visiteForm.typeVisite ?? ""} onChange={setV("typeVisite")} />
+            </div>
+
             <div><label className="text-xs text-muted-foreground">Examens cliniques / Explorations</label><textarea className="w-full min-h-16 px-3 py-2 text-sm bg-background border border-input rounded-md resize-y" value={visiteForm.examensCliniques ?? ""} onChange={setV("examensCliniques")} /></div>
             <div><label className="text-xs text-muted-foreground">Observations</label><textarea className="w-full min-h-16 px-3 py-2 text-sm bg-background border border-input rounded-md resize-y" value={visiteForm.observations ?? ""} onChange={setV("observations")} /></div>
             <div><label className="text-xs text-muted-foreground">Recommandations</label><textarea className="w-full min-h-14 px-3 py-2 text-sm bg-background border border-input rounded-md resize-y" value={visiteForm.recommandations ?? ""} onChange={setV("recommandations")} /></div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Orientation Cs MT / Soins</label>
+                <Input placeholder="Cardiologue, Ophtalmo…" value={visiteForm.orientationSoins ?? ""} onChange={setV("orientationSoins")} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Examen Radio</label>
+                <Input placeholder="Rx thorax, Echo…" value={visiteForm.examenRadio ?? ""} onChange={setV("examenRadio")} />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground">Bilan (bio)</label>
+              <Input placeholder="NFS, glycémie, bilan lipidique…" value={visiteForm.bilan ?? ""} onChange={setV("bilan")} />
+            </div>
+
             <div>
               <label className="text-xs text-muted-foreground">Décision d'aptitude</label>
               <select className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md" value={visiteForm.decisionAptitude ?? ""} onChange={setV("decisionAptitude")}>
@@ -528,13 +632,26 @@ export default function FicheTechnique() {
                     <div className="px-4 pb-4 border-t border-border bg-muted/10">
                       {isEditingThis ? (
                         <div className="space-y-3 pt-3">
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-3 gap-3">
                             <div><label className="text-xs text-muted-foreground">Date</label><Input type="date" value={visiteForm.dateVisite ?? ""} onChange={setV("dateVisite")} /></div>
-                            <div><label className="text-xs text-muted-foreground">Type</label><Input value={visiteForm.typeVisite ?? ""} onChange={setV("typeVisite")} /></div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Risque</label>
+                              <select className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md" value={visiteForm.risque ?? ""} onChange={setV("risque")}>
+                                <option value="">—</option>
+                                <option value="A">A — Actif</option>
+                                <option value="S">S — Sédentaire</option>
+                              </select>
+                            </div>
+                            <div><label className="text-xs text-muted-foreground">Type (VMC)</label><Input value={visiteForm.typeVisite ?? ""} onChange={setV("typeVisite")} placeholder="VMA, VMSle, VMC…" /></div>
                           </div>
                           <div><label className="text-xs text-muted-foreground">Examens / Explorations</label><textarea className="w-full min-h-16 px-3 py-2 text-sm bg-background border border-input rounded-md resize-y" value={visiteForm.examensCliniques ?? ""} onChange={setV("examensCliniques")} /></div>
                           <div><label className="text-xs text-muted-foreground">Observations</label><textarea className="w-full min-h-16 px-3 py-2 text-sm bg-background border border-input rounded-md resize-y" value={visiteForm.observations ?? ""} onChange={setV("observations")} /></div>
                           <div><label className="text-xs text-muted-foreground">Recommandations</label><textarea className="w-full min-h-14 px-3 py-2 text-sm bg-background border border-input rounded-md resize-y" value={visiteForm.recommandations ?? ""} onChange={setV("recommandations")} /></div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div><label className="text-xs text-muted-foreground">Orientation Cs MT / Soins</label><Input value={visiteForm.orientationSoins ?? ""} onChange={setV("orientationSoins")} /></div>
+                            <div><label className="text-xs text-muted-foreground">Examen Radio</label><Input value={visiteForm.examenRadio ?? ""} onChange={setV("examenRadio")} /></div>
+                          </div>
+                          <div><label className="text-xs text-muted-foreground">Bilan (bio)</label><Input value={visiteForm.bilan ?? ""} onChange={setV("bilan")} /></div>
                           <div>
                             <label className="text-xs text-muted-foreground">Décision d'aptitude</label>
                             <select className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md" value={visiteForm.decisionAptitude ?? ""} onChange={setV("decisionAptitude")}>
@@ -551,10 +668,14 @@ export default function FicheTechnique() {
                         </div>
                       ) : (
                         <div className="space-y-2 pt-3 text-sm">
+                          {v.risque && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Risque</p><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 border border-slate-300 text-slate-700">{v.risque === "A" ? "A — Actif" : v.risque === "S" ? "S — Sédentaire" : v.risque}</span></div>}
                           {v.examensCliniques && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Examens / Explorations</p><p className="leading-relaxed">{v.examensCliniques}</p></div>}
                           {v.observations && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Observations</p><p className="leading-relaxed">{v.observations}</p></div>}
                           {v.recommandations && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Recommandations</p><p className="leading-relaxed">{v.recommandations}</p></div>}
-                          {!v.examensCliniques && !v.observations && !v.recommandations && (
+                          {v.orientationSoins && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Orientation Cs MT / Soins</p><p>{v.orientationSoins}</p></div>}
+                          {v.examenRadio && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Examen Radio</p><p>{v.examenRadio}</p></div>}
+                          {v.bilan && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Bilan (bio)</p><p>{v.bilan}</p></div>}
+                          {!v.examensCliniques && !v.observations && !v.recommandations && !v.orientationSoins && !v.examenRadio && !v.bilan && (
                             <p className="text-muted-foreground italic">Aucun détail enregistré</p>
                           )}
                         </div>

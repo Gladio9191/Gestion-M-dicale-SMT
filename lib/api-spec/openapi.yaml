@@ -628,6 +628,9 @@ components:
         typeVisite:
           type: string
           nullable: true
+        risque:
+          type: string
+          nullable: true
         examensCliniques:
           type: string
           nullable: true
@@ -641,6 +644,15 @@ components:
           type: string
           nullable: true
           enum: [APTE, INAPTE, APTE_SOUS_RESERVE, null]
+        orientationSoins:
+          type: string
+          nullable: true
+        examenRadio:
+          type: string
+          nullable: true
+        bilan:
+          type: string
+          nullable: true
         createdAt:
           type: string
       required: [id, employeeId, dateVisite, createdAt]
@@ -653,6 +665,9 @@ components:
         typeVisite:
           type: string
           nullable: true
+        risque:
+          type: string
+          nullable: true
         examensCliniques:
           type: string
           nullable: true
@@ -666,6 +681,15 @@ components:
           type: string
           nullable: true
           enum: [APTE, INAPTE, APTE_SOUS_RESERVE, null]
+        orientationSoins:
+          type: string
+          nullable: true
+        examenRadio:
+          type: string
+          nullable: true
+        bilan:
+          type: string
+          nullable: true
       required: [dateVisite]
 
     Antecedent:

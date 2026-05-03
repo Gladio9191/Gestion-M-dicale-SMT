@@ -81,10 +81,14 @@ export interface Visite {
   employeeId: number;
   dateVisite: string;
   typeVisite?: string | null;
+  risque?: string | null;
   examensCliniques?: string | null;
   observations?: string | null;
   recommandations?: string | null;
   decisionAptitude?: VisiteDecisionAptitude;
+  orientationSoins?: string | null;
+  examenRadio?: string | null;
+  bilan?: string | null;
   createdAt: string;
 }
 
@@ -101,10 +105,14 @@ export const CreateVisiteBodyDecisionAptitude = {
 export interface CreateVisiteBody {
   dateVisite: string;
   typeVisite?: string | null;
+  risque?: string | null;
   examensCliniques?: string | null;
   observations?: string | null;
   recommandations?: string | null;
   decisionAptitude?: CreateVisiteBodyDecisionAptitude;
+  orientationSoins?: string | null;
+  examenRadio?: string | null;
+  bilan?: string | null;
 }
 
 export type AntecedentType =
