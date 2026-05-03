@@ -112,15 +112,14 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
 
     W = 170   # usable width (210 - 2*20)
 
-    # ── Title row: SMT LAAYOUNE (left) | FICHE TECHNIQUE MEDICALE (center) | blank (right)
-    COL = W // 3          # ~56 mm each column
-    COL_R = W - 2 * COL  # remainder for right column
-    pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(COL,   12, "SMT LAAYOUNE",          align="L", border="LTB")
+    # ── SMT LAAYOUNE — top-left, small italic, no border
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.cell(W, 6, "SMT LAAYOUNE", align="L", border=0,
+             new_x="LMARGIN", new_y="NEXT")
+
+    # ── Main title — centered, bold, NO border/frame
     pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(COL,   12, "FICHE TECHNIQUE MEDICALE", align="C", border="TB")
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(COL_R, 12, "",                       align="R", border="TRB",
+    pdf.cell(W, 10, "FICHE TECHNIQUE MEDICALE", align="C", border=0,
              new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
