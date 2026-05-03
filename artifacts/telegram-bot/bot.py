@@ -2,6 +2,7 @@ import os
 import io
 import logging
 import smtplib
+import asyncio
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -283,18 +284,22 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+def _fetch_employees_list() -> list:
+    """Blocking helper — run via asyncio.to_thread."""
+    url = f"{API_BASE}/api/employees?limit=100"
+    with urllib.request.urlopen(url, timeout=8) as resp:
+        data = json.loads(resp.read().decode())
+    return data.get("employees") or data.get("data") or (data if isinstance(data, list) else [])
+
+
 async def list_employees(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show all employees currently in the real database."""
-    url = f"{API_BASE}/api/employees?limit=100"
     try:
-        with urllib.request.urlopen(url, timeout=8) as resp:
-            data = json.loads(resp.read().decode())
+        employees = await asyncio.to_thread(_fetch_employees_list)
     except Exception as e:
         logger.error("List employees error: %s", e)
         await update.message.reply_text("Erreur lors de la recuperation de la liste.")
         return
-
-    employees = data.get("employees") or data.get("data") or (data if isinstance(data, list) else [])
 
     if not employees:
         await update.message.reply_text("Aucun employe trouve dans la base de donnees.")
@@ -302,8 +307,8 @@ async def list_employees(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     lines = ["Liste des employes (base de donnees) :\n"]
     for emp in employees:
-        mat  = emp.get("matricule", "?")
-        nom  = emp.get("nom", "")
+        mat    = emp.get("matricule", "?")
+        nom    = emp.get("nom", "")
         prenom = emp.get("prenom", "")
         lines.append(f"  {mat}  —  {prenom} {nom}")
 
@@ -318,19 +323,20 @@ async def handle_matricule(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # 1) Check local demo dict (case-insensitive upper)
     emp = EMPLOYEES.get(text.upper())
 
-    # 2) If not found locally, try the real database
+    # 2) If not found locally, search the real database (run blocking IO in thread)
     if emp is None:
         await update.message.reply_text(f"Recherche de '{text}' dans la base de donnees...")
-        emp = fetch_from_db(text)
+        emp = await asyncio.to_thread(fetch_from_db, text)
 
-    # 3) Also try uppercase version in DB
+    # 3) Also try uppercase variant
     if emp is None and text != text.upper():
-        emp = fetch_from_db(text.upper())
+        emp = await asyncio.to_thread(fetch_from_db, text.upper())
 
     if emp is None:
         await update.message.reply_text(
             f"Matricule '{text}' introuvable.\n"
-            "Verifiez le matricule et reessayez."
+            "Verifiez le matricule et reessayez.\n\n"
+            "Utilisez /list pour voir tous les matricules disponibles."
         )
         return
 
@@ -339,10 +345,10 @@ async def handle_matricule(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await update.message.reply_text(f"Generation de la fiche pour {full_name}{source_label}...")
 
     try:
-        pdf_bytes = generate_fiche_pdf(text, emp)
+        pdf_bytes = await asyncio.to_thread(generate_fiche_pdf, text, emp)
     except Exception as e:
         logger.error("PDF generation error: %s", e)
-        await update.message.reply_text("Erreur lors de la generation du PDF.")
+        await update.message.reply_text(f"Erreur lors de la generation du PDF: {e}")
         return
 
     # 1) Send PDF in Telegram
@@ -352,14 +358,14 @@ async def handle_matricule(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         caption=f"Fiche Technique — {full_name} ({text}) | {emp['statut']}",
     )
 
-    # 2) Send PDF by email automatically
-    email_ok = send_pdf_by_email(EMAIL_DEST, text, emp, pdf_bytes)
+    # 2) Send PDF by email automatically (non-blocking)
+    email_ok = await asyncio.to_thread(send_pdf_by_email, EMAIL_DEST, text, emp, pdf_bytes)
     if email_ok:
-        await update.message.reply_text(f"Email envoye a {EMAIL_DEST}")
+        await update.message.reply_text(f"Email envoye automatiquement a {EMAIL_DEST}")
     else:
         await update.message.reply_text(
             "PDF envoye sur Telegram.\n"
-            "(Email desactive — ajoutez SMTP_USER et SMTP_PASS dans Secrets pour l'activer.)"
+            "(Email desactive — verifiez SMTP_USER / SMTP_PASS dans les Secrets.)"
         )
 
 
