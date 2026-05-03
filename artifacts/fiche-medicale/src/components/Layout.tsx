@@ -31,13 +31,13 @@ const GROUPS: { title: string; items: NavItem[]; secondary?: NavItem }[] = [
       { href: "/hygiene/new",        label: "Nouvelle Visite",    icon: ShieldCheck },
       { href: "/hygiene/historique", label: "Historique Visites", icon: History },
     ],
-    secondary: { href: "/pointage", label: "Pointage Mensuel", icon: CalendarCheck },
   },
   {
     title: "Objectifs & Qualité",
     items: [
       { href: "/evaluation", label: "Évaluation des Objectifs", icon: BarChart2 },
     ],
+    secondary: { href: "/pointage", label: "Pointage Mensuel", icon: CalendarCheck },
   },
 ];
 
