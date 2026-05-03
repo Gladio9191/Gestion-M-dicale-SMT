@@ -36,6 +36,7 @@ export const employeesTable = pgTable("employees", {
   prenom: text("prenom").notNull(),
   dateNaissance: text("date_naissance"),
   dateEmbauche: text("date_embauche"),
+  direction: text("direction"),
   service: text("service"),
   posteActuel: text("poste_actuel"),
   anamnese: text("anamnese"),

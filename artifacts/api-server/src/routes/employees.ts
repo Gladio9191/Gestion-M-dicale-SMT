@@ -287,13 +287,14 @@ router.post("/employees/:matricule/expertises", async (req, res) => {
 });
 
 router.post("/employees/import", async (req, res) => {
-  const { employees, updateExisting = false } = req.body as {
+  const { employees, updateExisting = false, visitesOnly = false } = req.body as {
     employees: Array<{
       matricule: string;
-      nom: string;
-      prenom: string;
+      nom?: string | null;
+      prenom?: string | null;
       dateNaissance?: string | null;
       dateEmbauche?: string | null;
+      direction?: string | null;
       service?: string | null;
       posteActuel?: string | null;
       anamnese?: string | null;
@@ -303,6 +304,7 @@ router.post("/employees/import", async (req, res) => {
       decisionAptitude?: string | null;
     }>;
     updateExisting?: boolean;
+    visitesOnly?: boolean;
   };
 
   if (!Array.isArray(employees) || employees.length === 0) {
@@ -313,8 +315,8 @@ router.post("/employees/import", async (req, res) => {
   let created = 0, updated = 0, skipped = 0, errors = 0;
 
   for (const rec of employees) {
-    if (!rec.matricule || !rec.nom || !rec.prenom) {
-      details.push({ matricule: rec.matricule ?? "?", status: "error", message: "Matricule, nom et prénom sont obligatoires" });
+    if (!rec.matricule) {
+      details.push({ matricule: rec.matricule ?? "?", status: "error", message: "Matricule est obligatoire" });
       errors++;
       continue;
     }
@@ -328,14 +330,27 @@ router.post("/employees/import", async (req, res) => {
       let employeeId: number;
 
       if (existing) {
-        if (updateExisting) {
+        if (visitesOnly) {
+          // Mode visites — update direction/service/poste si fournis mais ne touche pas nom/prenom
+          if (rec.direction || rec.service || rec.posteActuel) {
+            const updateFields: Record<string, unknown> = { updatedAt: new Date() };
+            if (rec.direction?.trim()) updateFields.direction = rec.direction.trim();
+            if (rec.service?.trim()) updateFields.service = rec.service.trim();
+            if (rec.posteActuel?.trim()) updateFields.posteActuel = rec.posteActuel.trim();
+            await db.update(employeesTable).set(updateFields).where(eq(employeesTable.matricule, rec.matricule.trim()));
+          }
+          employeeId = existing.id;
+          details.push({ matricule: rec.matricule, status: "updated", message: null });
+          updated++;
+        } else if (updateExisting) {
           await db
             .update(employeesTable)
             .set({
-              nom: rec.nom.trim(),
-              prenom: rec.prenom.trim(),
+              nom: rec.nom?.trim() || undefined,
+              prenom: rec.prenom?.trim() || undefined,
               dateNaissance: rec.dateNaissance?.trim() || null,
               dateEmbauche: rec.dateEmbauche?.trim() || null,
+              direction: rec.direction?.trim() || null,
               service: rec.service?.trim() || null,
               posteActuel: rec.posteActuel?.trim() || null,
               anamnese: rec.anamnese?.trim() || null,
@@ -351,7 +366,17 @@ router.post("/employees/import", async (req, res) => {
           skipped++;
           continue;
         }
+      } else if (visitesOnly) {
+        // Mode visites — employé introuvable, on skip
+        details.push({ matricule: rec.matricule, status: "skipped", message: "Employé introuvable (mode visites)" });
+        skipped++;
+        continue;
       } else {
+        if (!rec.nom || !rec.prenom) {
+          details.push({ matricule: rec.matricule, status: "error", message: "Nom et prénom obligatoires pour créer un employé" });
+          errors++;
+          continue;
+        }
         const [inserted] = await db
           .insert(employeesTable)
           .values({
@@ -360,6 +385,7 @@ router.post("/employees/import", async (req, res) => {
             prenom: rec.prenom.trim(),
             dateNaissance: rec.dateNaissance?.trim() || null,
             dateEmbauche: rec.dateEmbauche?.trim() || null,
+            direction: rec.direction?.trim() || null,
             service: rec.service?.trim() || null,
             posteActuel: rec.posteActuel?.trim() || null,
             anamnese: rec.anamnese?.trim() || null,

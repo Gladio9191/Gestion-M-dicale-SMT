@@ -519,6 +519,9 @@ components:
         dateEmbauche:
           type: string
           nullable: true
+        direction:
+          type: string
+          nullable: true
         service:
           type: string
           nullable: true
@@ -552,6 +555,9 @@ components:
         dateEmbauche:
           type: string
           nullable: true
+        direction:
+          type: string
+          nullable: true
         service:
           type: string
           nullable: true
@@ -577,6 +583,9 @@ components:
           type: string
           nullable: true
         dateEmbauche:
+          type: string
+          nullable: true
+        direction:
           type: string
           nullable: true
         service:
@@ -858,6 +867,9 @@ components:
         dateEmbauche:
           type: string
           nullable: true
+        direction:
+          type: string
+          nullable: true
         service:
           type: string
           nullable: true
@@ -879,7 +891,7 @@ components:
         decisionAptitude:
           type: string
           nullable: true
-      required: [matricule, nom, prenom]
+      required: [matricule]
 
     ImportEmployeesBody:
       type: object
@@ -889,6 +901,8 @@ components:
           items:
             $ref: "#/components/schemas/ImportEmployeeRecord"
         updateExisting:
+          type: boolean
+        visitesOnly:
           type: boolean
       required: [employees]
 

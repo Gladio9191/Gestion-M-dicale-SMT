@@ -25,6 +25,7 @@ export interface Employee {
   dateNaissance?: string | null;
   age?: number | null;
   dateEmbauche?: string | null;
+  direction?: string | null;
   service?: string | null;
   posteActuel?: string | null;
   anamnese?: string | null;
@@ -39,6 +40,7 @@ export interface CreateEmployeeBody {
   prenom: string;
   dateNaissance?: string | null;
   dateEmbauche?: string | null;
+  direction?: string | null;
   service?: string | null;
   posteActuel?: string | null;
   anamnese?: string | null;
@@ -50,6 +52,7 @@ export interface UpdateEmployeeBody {
   prenom?: string;
   dateNaissance?: string | null;
   dateEmbauche?: string | null;
+  direction?: string | null;
   service?: string | null;
   posteActuel?: string | null;
   anamnese?: string | null;
@@ -250,10 +253,11 @@ export interface AptitudeStat {
 
 export interface ImportEmployeeRecord {
   matricule: string;
-  nom: string;
-  prenom: string;
+  nom?: string;
+  prenom?: string;
   dateNaissance?: string | null;
   dateEmbauche?: string | null;
+  direction?: string | null;
   service?: string | null;
   posteActuel?: string | null;
   anamnese?: string | null;
@@ -266,6 +270,7 @@ export interface ImportEmployeeRecord {
 export interface ImportEmployeesBody {
   employees: ImportEmployeeRecord[];
   updateExisting?: boolean;
+  visitesOnly?: boolean;
 }
 
 export type ImportRowResultStatus =
