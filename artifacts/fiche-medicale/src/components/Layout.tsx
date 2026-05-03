@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Plus, Activity, FileUp } from "lucide-react";
+import { LayoutDashboard, Users, Plus, Activity, FileUp, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { href: "/employees", label: "Employés", icon: Users },
   { href: "/employees/new", label: "Nouvel employé", icon: Plus },
   { href: "/import", label: "Import Excel", icon: FileUp },
+  { href: "/generer", label: "Générer Fiches PDF", icon: FileText },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
