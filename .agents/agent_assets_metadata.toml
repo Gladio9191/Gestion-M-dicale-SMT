@@ -1,0 +1,20 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "kYkQacBxknH9o8A9MptAu"
+uri = "file://screenshots/step0_nav.jpg"
+type = "image"
+title = "الخطوة 1 — دخل من القائمة اليسرى على «Générer Fiches PDF»"
+
+[[outputs]]
+id = "HF3E_43UIdL9uxz_8KTNz"
+uri = "file://screenshots/step2_search.jpg"
+type = "image"
+title = "الخطوة 2 — البحث السريع بماتريكول واحد"
+
+[[outputs]]
+id = "79Uj_kqzBWBFBM9YO7ORK"
+uri = "file://screenshots/step3_upload.jpg"
+type = "image"
+title = "الخطوة 3 و 4 و 5 — تحميل الملفات والمعالجة الجماعية"
