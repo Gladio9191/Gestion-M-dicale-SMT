@@ -4,6 +4,7 @@ import employeesRouter from "./employees";
 import medicalRouter from "./medical";
 import statsRouter from "./stats";
 import hygieneRouter from "./hygiene";
+import expertisesManualRouter from "./expertises-manual";
 
 const router: IRouter = Router();
 
@@ -12,5 +13,6 @@ router.use(employeesRouter);
 router.use(medicalRouter);
 router.use(statsRouter);
 router.use(hygieneRouter);
+router.use(expertisesManualRouter);
 
 export default router;

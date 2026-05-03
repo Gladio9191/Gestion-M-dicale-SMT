@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Users, Plus, Activity, FileUp, FileText, ShieldCheck, History } from "lucide-react";
+import { LayoutDashboard, Users, Plus, Activity, FileUp, FileText, ShieldCheck, History, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -13,6 +13,10 @@ const navItems = [
 const hygieneItems = [
   { href: "/hygiene/new", label: "Nouvelle visite", icon: ShieldCheck },
   { href: "/hygiene/historique", label: "Historique visites", icon: History },
+];
+
+const expertisesItems = [
+  { href: "/expertises", label: "Saisie des Expertises", icon: FlaskConical },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -66,6 +70,33 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               Hygiène & Sécurité
             </p>
             {hygieneItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Expertises section */}
+          <div className="pt-3">
+            <p className="px-3 pb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+              <FlaskConical className="w-3.5 h-3.5" />
+              Expertises Médicales
+            </p>
+            {expertisesItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               return (

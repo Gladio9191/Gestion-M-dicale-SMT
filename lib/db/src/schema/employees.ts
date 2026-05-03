@@ -85,6 +85,16 @@ export const visitesTable = pgTable("visites_medicales", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const expertisesManuellesTable = pgTable("expertises_medicales_manuelles", {
+  id: serial("id").primaryKey(),
+  matricule: text("matricule").notNull(),
+  categorie: text("categorie").notNull(),
+  typeExpertise: text("type_expertise").notNull(),
+  resultat: text("resultat"),
+  dateExpertise: text("date_expertise").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const visitesHygieneTable = pgTable("visites_hygiene", {
   id: serial("id").primaryKey(),
   dateVisite: text("date_visite").notNull(),

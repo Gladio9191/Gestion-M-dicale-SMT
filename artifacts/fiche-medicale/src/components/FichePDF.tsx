@@ -90,6 +90,7 @@ export type FicheData = {
   maladiesChroniques?: MaladieEntry[];
   notes?: NoteEntry[];
   corrections?: Array<{ matricule: string; method: string; details: string }>;
+  manualExpertises?: Array<{ categorie: string; typeExpertise: string; resultat: string | null; dateExpertise: string }>;
 };
 
 const EXPERTISE_TYPES = ["OPTHALMO", "PSY", "ORL", "VERTIGE"] as const;

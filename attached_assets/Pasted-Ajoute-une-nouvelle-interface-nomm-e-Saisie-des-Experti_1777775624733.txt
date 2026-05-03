@@ -1,0 +1,20 @@
+Ajoute une nouvelle interface nommée 'Saisie des Expertises Médicales'. Cette fenêtre doit permettre d'enregistrer manuellement les résultats des examens sans avoir à télécharger de fichiers.
+​1. Formulaire de saisie :
+Crée un formulaire simple avec les champs suivants :
+​Matricule : (Champ clé pour lier l'expertise à l'agent).
+​Catégorie d'expertise : (Menu déroulant avec : Expertises standards [Ophtalmo, ORL, Psy], Expertises systématiques [Bilans biologiques, Bilans radiologiques], Autres expertises MT, Suivi en soins).
+​Type d'expertise spécifique : (Champ texte pour préciser l'examen).
+​Résultat : (Zone de texte pour saisir le compte-rendu ou le résultat).
+​Date de l'expertise : (Champ date).
+​2. Gestion de la base de données :
+​Sauvegarde ces informations dans un fichier local (JSON ou SQLite) ou une nouvelle feuille Excel nommée 'Base_Expertises'.
+​Chaque entrée doit être liée au Matricule.
+​3. Intégration dans la Fiche Technique (Word) :
+​Lors de la génération de la Fiche Technique Médicale d'un agent (via son matricule), l'application doit automatiquement chercher dans la 'Base_Expertises' s'il existe des résultats liés à ce matricule.
+​Si des expertises sont trouvées, elles doivent être insérées dans une section dédiée de la fiche Word, classées par catégorie et par date.
+​4. Intelligence de l'interface :
+​Une fois le Matricule saisi, affiche le Nom et Prénom de l'agent (récupérés depuis le fichier Personnel Global) pour confirmer qu'il s'agit de la bonne personne avant de valider la saisie."
+​نصائح باش تنجح ليك هاد الميزة:
+​Confirmation Visuelle: النقطة الرابعة مهمة بزاف؛ غير تكتبي الماتريكول، خليه يخرج ليك السمية والكنية حداه باش تأكدي أنك ما غلطتيش في الرقم قبل ما تدخلي النتيجة الطبية.
+​Historique: قولي ليه يزيد "Tableau récapitulatif" لتحت في نفس النافذة، يبين ليك آخر 5 أو 10 ديال الخبرات اللي دخلتي، باش إلا بغيتي تعدلي شي حاجة بانت ليك غلط.
+​الربط مع الوورد: تأكدي أن الـ Agent كيدير "Formatage" زوين لهاد الخبرات في ملف Word (مثلاً يستعمل Italique أو يديرهم في جداول صغيرة ملونة على حسب النوع).

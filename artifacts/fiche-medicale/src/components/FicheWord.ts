@@ -44,9 +44,24 @@ function sectionTitle(title: string, shade = "D5D5D5", textColor = "000000"): Ta
 
 function spacer(): Paragraph { return new Paragraph({ children: [], spacing: { before: 80, after: 0 } }); }
 
+/* ── Category colours for manual expertises ─────────────────────────────── */
+const CAT_STYLE: Record<string, { bg: string; hdr: string; text: string }> = {
+  STANDARDS:     { bg: "D6EAF8", hdr: "1a5276", text: "154360" },
+  SYSTEMATIQUES: { bg: "E8DAEF", hdr: "6c3483", text: "4a235a" },
+  AUTRES_MT:     { bg: "FDEBD0", hdr: "935116", text: "6e3b10" },
+  SOINS:         { bg: "D5F5E3", hdr: "1e8449", text: "145a32" },
+};
+const CAT_LABELS: Record<string, string> = {
+  STANDARDS:     "Expertises Standards (Ophtalmo / ORL / Psy)",
+  SYSTEMATIQUES: "Expertises Systématiques (Bilans biologiques / radiologiques)",
+  AUTRES_MT:     "Autres Expertises MT",
+  SOINS:         "Suivi en Soins",
+};
+const CAT_ORDER = ["STANDARDS", "SYSTEMATIQUES", "AUTRES_MT", "SOINS"] as const;
+
 /* ── Build one fiche ─────────────────────────────────────────────────────── */
 function buildFiche(data: FicheData, isFirst: boolean): (Paragraph | Table)[] {
-  const { employee, antecedents, expertises, visites, restrictionsMedicales, maladiesChroniques, notes, corrections } = data;
+  const { employee, antecedents, expertises, visites, restrictionsMedicales, maladiesChroniques, notes, corrections, manualExpertises } = data;
   const out: (Paragraph | Table)[] = [];
 
   if (!isFirst) out.push(new Paragraph({ children: [new PageBreak()] }));
@@ -98,7 +113,7 @@ function buildFiche(data: FicheData, isFirst: boolean): (Paragraph | Table)[] {
   out.push(p(employee.decisionsImportantes ? [N(employee.decisionsImportantes, 17)] : [I("—", 16)], { left: 100 }));
   out.push(spacer());
 
-  /* Expertise */
+  /* Expertise (DB-linked) */
   out.push(sectionTitle("Expertise"));
   out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NONE, rows:
     ["OPTHALMO", "PSY", "ORL", "VERTIGE"].map((type) => {
@@ -111,6 +126,40 @@ function buildFiche(data: FicheData, isFirst: boolean): (Paragraph | Table)[] {
     })
   }));
   out.push(spacer());
+
+  /* Manual Expertises (saisie manuelle) */
+  if (manualExpertises && manualExpertises.length > 0) {
+    out.push(sectionTitle("Expertises Médicales — Résultats Détaillés", "D4E6F1", "1a5276"));
+    for (const cat of CAT_ORDER) {
+      const items = manualExpertises.filter((e) => e.categorie === cat);
+      if (!items.length) continue;
+      const cs = CAT_STYLE[cat] ?? { bg: "F0F0F0", hdr: "333333", text: "111111" };
+      // Category header
+      out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NONE, rows: [
+        new TableRow({ children: [
+          new TableCell({
+            shading: { type: ShadingType.SOLID, color: cs.hdr, fill: cs.hdr },
+            borders: THICK,
+            children: [p([new TextRun({ text: `  ${CAT_LABELS[cat] ?? cat}`, bold: true, size: 17, color: "FFFFFF", font: "Arial" })], {})],
+          }),
+        ]})
+      ]}));
+      // Column headers
+      out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: NONE, rows: [
+        new TableRow({ children: [
+          new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: cs.bg, fill: cs.bg }, borders: THIN, children: [p([B("Date", 16)], { center: true })] }),
+          new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: cs.bg, fill: cs.bg }, borders: THIN, children: [p([B("Type d'expertise", 16)], { center: true })] }),
+          new TableCell({ width: { size: 55, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: cs.bg, fill: cs.bg }, borders: THIN, children: [p([B("Résultat / Compte-rendu", 16)], { center: true })] }),
+        ]}),
+        ...items.map((e) => new TableRow({ height: { value: 480, rule: "atLeast" }, children: [
+          new TableCell({ width: { size: 20, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([N(e.dateExpertise, 16)], { left: 60 })] }),
+          new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p([B(e.typeExpertise, 16)], { left: 60 })] }),
+          new TableCell({ width: { size: 55, type: WidthType.PERCENTAGE }, borders: THIN, verticalAlign: VerticalAlign.TOP, children: [p(e.resultat ? [N(e.resultat, 16)] : [I("—", 15)], { left: 60 })] }),
+        ]})),
+      ]}));
+      out.push(spacer());
+    }
+  }
 
   /* Restrictions Médicales */
   if (restrictionsMedicales && restrictionsMedicales.length > 0) {

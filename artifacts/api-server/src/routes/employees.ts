@@ -6,6 +6,7 @@ import {
   restrictionsTable,
   expertisesTable,
   visitesTable,
+  expertisesManuellesTable,
 } from "@workspace/db";
 import {
   ListEmployeesQueryParams,
@@ -173,11 +174,12 @@ router.get("/employees/:matricule/fiche", async (req, res) => {
   if (!employee) {
     return res.status(404).json({ error: "Employé non trouvé" });
   }
-  const [antecedents, restrictions, expertises, visites] = await Promise.all([
+  const [antecedents, restrictions, expertises, visites, manualExpertises] = await Promise.all([
     db.select().from(antecedentsTable).where(eq(antecedentsTable.employeeId, employee.id)).orderBy(desc(antecedentsTable.createdAt)),
     db.select().from(restrictionsTable).where(eq(restrictionsTable.employeeId, employee.id)).orderBy(desc(restrictionsTable.createdAt)),
     db.select().from(expertisesTable).where(eq(expertisesTable.employeeId, employee.id)).orderBy(desc(expertisesTable.createdAt)),
     db.select().from(visitesTable).where(eq(visitesTable.employeeId, employee.id)).orderBy(desc(visitesTable.dateVisite)),
+    db.select().from(expertisesManuellesTable).where(eq(expertisesManuellesTable.matricule, matricule)).orderBy(desc(expertisesManuellesTable.dateExpertise)),
   ]);
 
   const mapEmployee = (e: typeof employee) => ({
@@ -197,6 +199,7 @@ router.get("/employees/:matricule/fiche", async (req, res) => {
     restrictions: mapWithDate(restrictions),
     expertises: mapWithDate(expertises),
     visites: mapWithDate(visites),
+    manualExpertises: manualExpertises.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() })),
   });
 });
 
