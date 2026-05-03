@@ -197,7 +197,7 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     pdf.set_fill_color(220, 220, 220)
     pdf.cell(C1, ROW_H, "Date des visites",                      border=1, align="C", fill=True)
     pdf.cell(C2, ROW_H, "Examens cliniques et/ou explorations",  border=1, align="C", fill=True)
-    pdf.cell(C3, ROW_H, "Observations",                          border=1, align="C", fill=True,
+    pdf.cell(C3, ROW_H, "Decision medicale",                     border=1, align="C", fill=True,
              new_x="LMARGIN", new_y="NEXT")
 
     visites = fiche.get("visites", []) if fiche else []
