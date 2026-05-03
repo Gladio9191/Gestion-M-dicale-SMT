@@ -13,6 +13,7 @@ import GenererFiches from "@/pages/GenererFiches";
 import VisiteHygiene from "@/pages/VisiteHygiene";
 import HistoriqueHygiene from "@/pages/HistoriqueHygiene";
 import SaisieExpertises from "@/pages/SaisieExpertises";
+import RegistreActivites from "@/pages/RegistreActivites";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/employees/new" component={NewEmployee} />
         <Route path="/import" component={ImportExcel} />
         <Route path="/generer" component={GenererFiches} />
+        <Route path="/registre" component={RegistreActivites} />
         <Route path="/hygiene/new" component={VisiteHygiene} />
         <Route path="/hygiene/historique" component={HistoriqueHygiene} />
         <Route path="/expertises" component={SaisieExpertises} />

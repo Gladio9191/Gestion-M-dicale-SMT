@@ -356,6 +356,62 @@ export default function GenererFiches() {
     a.click();
   };
 
+  /* ── Tab state ──────────────────────────────────────────────────────────── */
+  const [activeTab, setActiveTab]           = useState<"single" | "bulk">("single");
+  const [singleMat, setSingleMat]           = useState("");
+  const [singleEmployee, setSingleEmployee] = useState<{ nom: string; prenom: string; direction?: string | null; service?: string | null; age?: number | null } | null>(null);
+  const [singleLooking, setSingleLooking]   = useState(false);
+  const [singleLookupDone, setSingleLookupDone] = useState(false);
+  const [singleNotFound, setSingleNotFound] = useState(false);
+
+  const resetSingle = () => { setSingleEmployee(null); setSingleNotFound(false); setSingleLookupDone(false); };
+
+  const lookupSingle = async () => {
+    const mat = singleMat.trim(); if (!mat) return;
+    setSingleLooking(true); resetSingle();
+    try {
+      const res = await fetch(`/api/employees/${encodeURIComponent(mat)}`);
+      if (res.ok) { const d = await res.json(); setSingleEmployee({ nom: d.nom, prenom: d.prenom, direction: d.direction, service: d.service, age: d.age }); }
+      else setSingleNotFound(true);
+    } catch { setSingleNotFound(true); }
+    setSingleLookupDone(true); setSingleLooking(false);
+  };
+
+  const generateSingleWord = async () => {
+    const mat = singleMat.trim(); if (!mat) return;
+    setSearching(true); setResults(null); setPdfPreviewUrl(null);
+    const resolved: ResolvedResult[] = [];
+    if (directory) {
+      const r = resolveMatricule(mat, directory.byMat, directory.nameLookup);
+      if (r) {
+        let fiche = r.fiche;
+        if (enrichDB) { const db = await fetchFromDB(fiche.employee.matricule); if (db) fiche = mergeDB(fiche, db); }
+        resolved.push(r.corrected ? { status: "corrected", input: mat, fiche, correctedTo: r.correctedTo! } : { status: "found", input: mat, fiche });
+      }
+    }
+    if (!resolved.length) {
+      const db = await fetchFromDB(mat);
+      resolved.push(db ? { status: "found", input: mat, fiche: db } : { status: "not_found", input: mat });
+    }
+    setResults(resolved); setSearching(false);
+    const fiches = resolved.filter((r): r is Extract<ResolvedResult, { fiche: FicheData }> => r.status !== "not_found").map((r) => r.fiche);
+    if (fiches.length > 0) {
+      setGenerating("word");
+      try {
+        const blob = await generateWordBlob(fiches);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url;
+        a.download = `fiche_${fiches[0].employee.matricule}.docx`;
+        a.click(); URL.revokeObjectURL(url);
+        const emp = fiches[0].employee;
+        toast({ title: `Fiche de ${emp.nom} ${emp.prenom} téléchargée ✓` });
+      } catch { toast({ title: "Erreur Word", variant: "destructive" }); }
+      setGenerating(null);
+    } else {
+      toast({ title: "Matricule introuvable", variant: "destructive" });
+    }
+  };
+
   /* ── Derived ────────────────────────────────────────────────────────────── */
   const hasFiles     = files.length > 0;
   const hasGlobal    = files.some((f) => f.isGlobal);
@@ -372,8 +428,30 @@ export default function GenererFiches() {
 
       {/* ── HEADER ──────────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Générer Fiches Techniques</h1>
-        <p className="text-muted-foreground text-sm mt-1">Recherchez un ou plusieurs agents pour générer leurs fiches en PDF ou Word</p>
+        <h1 className="text-2xl font-bold text-foreground">Générer Fiches Techniques (.docx)</h1>
+        <p className="text-muted-foreground text-sm mt-1">Générez des fiches Word modifiables par matricule ou en lot</p>
+      </div>
+
+      {/* ── TABS ────────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 p-1 bg-muted/40 border border-border rounded-xl w-fit">
+        <button
+          onClick={() => { setActiveTab("single"); setResults(null); setPdfPreviewUrl(null); }}
+          className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "single" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Search className="w-4 h-4" />
+          Onglet 1 — Par Matricule
+        </button>
+        <button
+          onClick={() => { setActiveTab("bulk"); setResults(null); setPdfPreviewUrl(null); }}
+          className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "bulk" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Database className="w-4 h-4" />
+          Onglet 2 — Lot / Bulk
+        </button>
       </div>
 
       {/* ══ ÉTAPE 1 — Fichiers Excel (optionnel, pour enrichissement) ══════ */}
@@ -453,41 +531,103 @@ export default function GenererFiches() {
         )}
       </div>
 
-      {/* ══ ÉTAPE 2 — Saisie des matricules ══════════════════════════════ */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
-          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
-          <span className="text-sm font-semibold text-foreground">Chercher un ou plusieurs matricules</span>
-        </div>
-        <div className="p-5">
-          <textarea
-            className="w-full h-40 rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none transition-colors"
-            placeholder={"Entrez les matricules — un par ligne :\n\nMAT-2016-001\nMAT-2017-042\nMAT-2019-108\n\n(ou collez directement depuis Excel)"}
-            value={searchInput}
-            onChange={(e) => { setSearchInput(e.target.value); setResults(null); setPdfPreviewUrl(null); }}
-          />
-          {matCount > 0 && (
-            <p className="text-xs text-muted-foreground mt-2">{matCount} matricule(s) détecté(s)</p>
-          )}
-          <div className="mt-3 flex gap-2">
-            <Button
-              onClick={handleSearch}
-              disabled={!canSearch || searching}
-              className="gap-2 min-w-40"
-              size="default"
-            >
-              {searching
-                ? <><Loader2 className="w-4 h-4 animate-spin" />Recherche en cours…</>
-                : <><Search className="w-4 h-4" />Rechercher</>}
-            </Button>
-            {results && (
-              <Button variant="ghost" size="default" className="gap-2" onClick={() => { setResults(null); setSearchInput(""); setPdfPreviewUrl(null); }}>
-                <RefreshCw className="w-3.5 h-3.5" />Réinitialiser
+      {/* ══ ONGLET 1 — Par Matricule ═════════════════════════════════════ */}
+      {activeTab === "single" && (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
+            <span className="text-sm font-semibold text-foreground">Saisie du matricule</span>
+            <span className="text-xs text-muted-foreground">— confirmation instantanée du nom & prénom</span>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Matricule (ex: MAT-2016-001)"
+                  value={singleMat}
+                  onChange={(e) => { setSingleMat(e.target.value); resetSingle(); setResults(null); }}
+                  onKeyDown={(e) => e.key === "Enter" && lookupSingle()}
+                  className="w-full pl-9 pr-4 py-2.5 border border-border rounded-lg bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+              <Button variant="outline" onClick={lookupSingle} disabled={!singleMat.trim() || singleLooking} className="gap-2 shrink-0">
+                {singleLooking ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                Vérifier
               </Button>
+            </div>
+
+            {/* Employee card */}
+            {singleLookupDone && singleEmployee && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <UserCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-emerald-800">{singleEmployee.nom} {singleEmployee.prenom}</p>
+                  <p className="text-xs text-emerald-600">
+                    {[singleEmployee.direction, singleEmployee.service].filter(Boolean).join(" · ")}
+                    {singleEmployee.age ? `  ·  ${singleEmployee.age} ans` : ""}
+                  </p>
+                </div>
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full shrink-0">✓ Confirmé</span>
+              </div>
             )}
+            {singleLookupDone && singleNotFound && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
+                <p className="text-sm text-amber-700">Matricule absent de la base de données — la fiche sera générée depuis les fichiers Excel si disponibles</p>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                onClick={generateSingleWord}
+                disabled={!singleMat.trim() || searching || generating === "word"}
+                className="gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                {(searching || generating === "word") ? <><Loader2 className="w-4 h-4 animate-spin" />Génération…</> : <><FileText className="w-4 h-4" />Générer Fiche Word</>}
+              </Button>
+              {results && <Button variant="ghost" size="default" className="gap-2" onClick={() => { setResults(null); setSingleMat(""); resetSingle(); }}>
+                <RefreshCw className="w-3.5 h-3.5" />Réinitialiser
+              </Button>}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* ══ ONGLET 2 — Lot / Bulk ════════════════════════════════════════ */}
+      {activeTab === "bulk" && (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
+            <span className="text-sm font-semibold text-foreground">Coller la liste des matricules</span>
+            <span className="text-xs text-muted-foreground">— depuis Excel, email, ou tout autre format</span>
+          </div>
+          <div className="p-5">
+            <textarea
+              className="w-full h-44 rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none transition-colors"
+              placeholder={"Collez vos matricules — n'importe quel format :\n\nMAT-2016-001\nMAT-2017-042\nMAT-2019-108\n\n(tabulation, virgule, point-virgule, retour à la ligne — tout est accepté)"}
+              value={searchInput}
+              onChange={(e) => { setSearchInput(e.target.value); setResults(null); setPdfPreviewUrl(null); }}
+            />
+            {matCount > 0 && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                <Info className="w-3 h-3" />{matCount} matricule(s) détecté(s)
+              </p>
+            )}
+            <div className="mt-3 flex gap-2">
+              <Button onClick={handleSearch} disabled={!canSearch || searching} className="gap-2 min-w-40">
+                {searching ? <><Loader2 className="w-4 h-4 animate-spin" />Recherche en cours…</> : <><Search className="w-4 h-4" />Rechercher</>}
+              </Button>
+              {results && (
+                <Button variant="ghost" size="default" className="gap-2" onClick={() => { setResults(null); setSearchInput(""); setPdfPreviewUrl(null); }}>
+                  <RefreshCw className="w-3.5 h-3.5" />Réinitialiser
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ ÉTAPE 3 — Résultats ══════════════════════════════════════════ */}
       {results && (
