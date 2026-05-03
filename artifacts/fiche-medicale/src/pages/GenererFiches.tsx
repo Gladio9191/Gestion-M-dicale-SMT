@@ -2,10 +2,11 @@ import { useRef, useState, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { pdf } from "@react-pdf/renderer";
 import { FicheDocument, FicheData, NoteEntry } from "@/components/FichePDF";
+import { generateWordBlob } from "@/components/FicheWord";
 import {
   Upload, FileSpreadsheet, Download, Loader2,
   CheckCircle, Users, RefreshCw, ChevronDown, ChevronUp,
-  Database, Table2, AlertTriangle, Layers,
+  Database, AlertTriangle, Layers, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -289,17 +290,17 @@ export default function GenererFiches() {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [dragging, setDragging]         = useState(false);
-  const [fileName, setFileName]         = useState<string | null>(null);
-  const [parseResult, setParseResult]   = useState<ParseResult | null>(null);
-  const [showSheets, setShowSheets]     = useState(false);
-  const [enrichDB, setEnrichDB]         = useState(false);
-  const [generating, setGenerating]     = useState(false);
-  const [done, setDone]                 = useState(false);
+  const [dragging, setDragging]           = useState(false);
+  const [fileName, setFileName]           = useState<string | null>(null);
+  const [parseResult, setParseResult]     = useState<ParseResult | null>(null);
+  const [showSheets, setShowSheets]       = useState(false);
+  const [enrichDB, setEnrichDB]           = useState(false);
+  const [generating, setGenerating]       = useState<"pdf" | "word" | null>(null);
+  const [done, setDone]                   = useState<"pdf" | "word" | null>(null);
 
   const parseFile = useCallback((file: File) => {
     setFileName(file.name);
-    setDone(false);
+    setDone(null);
     setParseResult(null);
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -328,13 +329,8 @@ export default function GenererFiches() {
     if (file) parseFile(file);
   }, [parseFile]);
 
-  const generate = async () => {
-    if (!parseResult || parseResult.totalAgents === 0) return;
-    setGenerating(true);
-    setDone(false);
-
-    let fiches = Array.from(parseResult.fichesByMat.values());
-
+  async function getFiches(): Promise<FicheData[]> {
+    let fiches = Array.from(parseResult!.fichesByMat.values());
     if (enrichDB) {
       const enriched: FicheData[] = [];
       for (const fiche of fiches) {
@@ -343,25 +339,54 @@ export default function GenererFiches() {
       }
       fiches = enriched;
     }
+    return fiches;
+  }
 
+  function downloadBlob(blob: Blob, ext: string) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement("a");
+    a.href    = url;
+    const count = parseResult!.totalAgents;
+    const mat   = Array.from(parseResult!.fichesByMat.keys())[0];
+    a.download  = count === 1
+      ? `fiche_${mat}.${ext}`
+      : `fiches_medicales_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const generatePDF = async () => {
+    if (!parseResult || parseResult.totalAgents === 0) return;
+    setGenerating("pdf");
+    setDone(null);
     try {
-      const blob = await pdf(<FicheDocument fiches={fiches} />).toBlob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      a.download = fiches.length === 1
-        ? `fiche_${fiches[0].employee.matricule}.pdf`
-        : `fiches_medicales_${new Date().toISOString().slice(0, 10)}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setDone(true);
-      toast({ title: `${fiches.length} fiche(s) générée(s) avec succès` });
+      const fiches = await getFiches();
+      const blob   = await pdf(<FicheDocument fiches={fiches} />).toBlob();
+      downloadBlob(blob, "pdf");
+      setDone("pdf");
+      toast({ title: `${fiches.length} fiche(s) PDF générée(s) ✓` });
     } catch (err) {
       console.error(err);
       toast({ title: "Erreur de génération PDF", variant: "destructive" });
     }
+    setGenerating(null);
+  };
 
-    setGenerating(false);
+  const generateWord = async () => {
+    if (!parseResult || parseResult.totalAgents === 0) return;
+    setGenerating("word");
+    setDone(null);
+    try {
+      const fiches = await getFiches();
+      const blob   = await generateWordBlob(fiches);
+      downloadBlob(blob, "docx");
+      setDone("word");
+      toast({ title: `${fiches.length} fiche(s) Word générée(s) ✓` });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erreur de génération Word", variant: "destructive" });
+    }
+    setGenerating(null);
   };
 
   const hasFile = !!parseResult;
@@ -540,30 +565,47 @@ export default function GenererFiches() {
                 <p className="font-semibold text-foreground text-sm">{parseResult!.totalAgents} agent(s)</p>
                 <p className="text-xs text-muted-foreground">
                   {activeSheets.length} feuille(s) utilisée(s)
-                  {sheetsWithNotes.length > 0 && ` · ${sheetsWithNotes.reduce((a, s) => a + s.unmappedCols.length, 0)} colonnes → notes PDF`}
+                  {sheetsWithNotes.length > 0 && ` · ${sheetsWithNotes.reduce((a, s) => a + s.unmappedCols.length, 0)} colonnes → notes`}
                 </p>
               </div>
             </div>
             {done && (
               <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5" /> PDF téléchargé
+                <CheckCircle className="w-3.5 h-3.5" />
+                {done === "pdf" ? "PDF téléchargé" : "Word téléchargé"}
               </span>
             )}
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
-            <Button onClick={generate} disabled={generating} className="gap-2 min-w-56">
-              {generating ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Génération en cours…</>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={generateWord}
+              disabled={!!generating}
+              className="gap-2 min-w-52 bg-blue-600 hover:bg-blue-700"
+            >
+              {generating === "word" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Génération Word…</>
               ) : (
-                <><Download className="w-4 h-4" />Générer {parseResult!.totalAgents} fiche(s) PDF</>
+                <><FileText className="w-4 h-4" />Word (.docx) — {parseResult!.totalAgents} fiche(s)</>
               )}
             </Button>
-            <Button variant="outline" className="gap-2" onClick={() => {
+            <Button
+              onClick={generatePDF}
+              disabled={!!generating}
+              variant="outline"
+              className="gap-2 min-w-52"
+            >
+              {generating === "pdf" ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Génération PDF…</>
+              ) : (
+                <><Download className="w-4 h-4" />PDF — {parseResult!.totalAgents} fiche(s)</>
+              )}
+            </Button>
+            <Button variant="ghost" className="gap-2" onClick={() => {
               setFileName(null);
               setParseResult(null);
-              setDone(false);
+              setDone(null);
               if (fileRef.current) fileRef.current.value = "";
             }}>
               <RefreshCw className="w-3.5 h-3.5" />Réinitialiser
