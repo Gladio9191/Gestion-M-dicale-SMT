@@ -1,39 +1,68 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Activity, Users, FileUp, ClipboardList, FileText,
-  ShieldCheck, History, FlaskConical, Plus, CalendarCheck, BarChart2,
+  ShieldCheck, History, FlaskConical, Plus, CalendarCheck,
+  BarChart2, Home, Settings, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/* ── Types ──────────────────────────────────────────────────────────────── */
 type NavItem = { href: string; label: string; icon: React.ElementType; exact?: boolean };
+type PrimaryGroup = {
+  id: string;
+  icon: React.ElementType;
+  label: string;
+  color: string;
+  bg: string;
+  items: NavItem[];
+  secondary?: NavItem;
+};
 
-/* ── Nav Groups ──────────────────────────────────────────────────────────── */
-const GROUPS: { title: string; items: NavItem[]; secondary?: NavItem }[] = [
+/* ── Navigation structure ─────────────────────────────────────────────── */
+const PRIMARY_GROUPS: PrimaryGroup[] = [
   {
-    title: "Activités Médicales",
+    id: "activites",
+    icon: Home,
+    label: "Activités",
+    color: "#2563EB",
+    bg: "#EFF6FF",
     items: [
-      { href: "/employees",     label: "Personnel Global",       icon: Users },
-      { href: "/registre",      label: "Registre des Activités", icon: ClipboardList },
-      { href: "/generer",       label: "Générer Fiches",         icon: FileText },
-      { href: "/import",        label: "Import Excel",           icon: FileUp },
-      { href: "/employees/new", label: "Nouvel Agent",           icon: Plus },
+      { href: "/",             label: "Tableau de bord",      icon: Home,          exact: true },
+      { href: "/employees",    label: "Personnel Global",      icon: Users },
+      { href: "/registre",     label: "Registre des Activités",icon: ClipboardList },
+      { href: "/generer",      label: "Générer Fiches",        icon: FileText },
+      { href: "/import",       label: "Import Excel",          icon: FileUp },
+      { href: "/employees/new",label: "Nouvel Agent",          icon: Plus },
     ],
   },
   {
-    title: "Expertises Médicales",
+    id: "expertises",
+    icon: FlaskConical,
+    label: "Expertises",
+    color: "#7C3AED",
+    bg: "#F5F3FF",
     items: [
       { href: "/expertises", label: "Saisie des Expertises", icon: FlaskConical },
     ],
   },
   {
-    title: "Visites d'Hygiène",
+    id: "hygiene",
+    icon: ShieldCheck,
+    label: "Hygiène",
+    color: "#059669",
+    bg: "#ECFDF5",
     items: [
       { href: "/hygiene/new",        label: "Nouvelle Visite",    icon: ShieldCheck },
       { href: "/hygiene/historique", label: "Historique Visites", icon: History },
     ],
   },
   {
-    title: "Objectifs & Qualité",
+    id: "objectifs",
+    icon: BarChart2,
+    label: "Objectifs",
+    color: "#DC2626",
+    bg: "#FEF2F2",
     items: [
       { href: "/evaluation", label: "Évaluation des Objectifs", icon: BarChart2 },
     ],
@@ -41,107 +70,161 @@ const GROUPS: { title: string; items: NavItem[]; secondary?: NavItem }[] = [
   },
 ];
 
-/* ── Nav Item ────────────────────────────────────────────────────────────── */
-function NavLink({ item, active, muted }: { item: NavItem; active: boolean; muted?: boolean }) {
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+function detectGroup(pathname: string): string {
+  if (pathname === "/" || pathname.startsWith("/employees") || pathname.startsWith("/registre") ||
+      pathname.startsWith("/generer") || pathname.startsWith("/import"))
+    return "activites";
+  if (pathname.startsWith("/expertises")) return "expertises";
+  if (pathname.startsWith("/hygiene"))   return "hygiene";
+  if (pathname.startsWith("/evaluation") || pathname.startsWith("/pointage")) return "objectifs";
+  return "activites";
+}
+
+/* ── Primary icon button ─────────────────────────────────────────────── */
+function PrimaryBtn({ group, active, onClick }: {
+  group: PrimaryGroup; active: boolean; onClick: () => void;
+}) {
+  const Icon = group.icon;
+  return (
+    <button
+      onClick={onClick}
+      title={group.label}
+      className={cn(
+        "relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-200 group",
+        active ? "shadow-md" : "hover:bg-white/10"
+      )}
+      style={active ? { backgroundColor: group.color } : {}}
+    >
+      <Icon className={cn("w-5 h-5 transition-colors", active ? "text-white" : "text-slate-400 group-hover:text-slate-200")} />
+      {active && (
+        <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-6 rounded-full bg-white" />
+      )}
+    </button>
+  );
+}
+
+/* ── Secondary nav link ───────────────────────────────────────────────── */
+function SecLink({ item, active, muted }: { item: NavItem; active: boolean; muted?: boolean }) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
       className={cn(
-        "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150",
+        "flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 group",
         active
-          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+          ? "text-white shadow-sm"
           : muted
-            ? "text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground/80"
-            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            ? "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
       )}
+      style={active ? { backgroundColor: "var(--active-color)" } : {}}
     >
-      <Icon className={cn(
-        "w-4 h-4 shrink-0 transition-opacity",
-        active ? "opacity-100" : muted ? "opacity-40 group-hover:opacity-60" : "opacity-55 group-hover:opacity-80"
-      )} />
-      <span className="truncate">{item.label}</span>
-      {active && (
-        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary-foreground/60 shrink-0" />
-      )}
+      <Icon className={cn("w-4 h-4 shrink-0", active ? "text-white" : muted ? "text-slate-300" : "text-slate-400 group-hover:text-slate-600")} />
+      <span className="flex-1 truncate">{item.label}</span>
+      {active && <ChevronRight className="w-3 h-3 text-white/60 shrink-0" />}
     </Link>
   );
 }
 
-/* ── Layout ──────────────────────────────────────────────────────────────── */
+/* ── Layout ───────────────────────────────────────────────────────────── */
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [activeGroup, setActiveGroup] = useState(() => detectGroup(location));
+
+  useEffect(() => {
+    setActiveGroup(detectGroup(location));
+  }, [location]);
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? location === href : location === href || location.startsWith(href + "/");
 
+  const group = PRIMARY_GROUPS.find(g => g.id === activeGroup) ?? PRIMARY_GROUPS[0];
+
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-[#F8FAFC]">
 
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <aside className="w-64 shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col shadow-[1px_0_0_0_hsl(214_20%_90%)]">
-
+      {/* ── PRIMARY sidebar (dark, slim) ─────────────────────────────── */}
+      <aside className="w-[72px] shrink-0 bg-[#0F172A] flex flex-col items-center py-4 gap-2 z-20">
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-sidebar-border">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center shrink-0 shadow-md shadow-sidebar-primary/25">
-              <Activity className="w-4.5 h-4.5 text-sidebar-primary-foreground" />
+        <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-900/40">
+          <Activity className="w-5 h-5 text-white" />
+        </div>
+
+        {/* Group icons */}
+        <div className="flex flex-col gap-2 flex-1">
+          {PRIMARY_GROUPS.map(g => (
+            <PrimaryBtn
+              key={g.id}
+              group={g}
+              active={activeGroup === g.id}
+              onClick={() => setActiveGroup(g.id)}
+            />
+          ))}
+        </div>
+
+        {/* Settings */}
+        <button className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-500 hover:bg-white/10 hover:text-slate-300 transition-all mt-2">
+          <Settings className="w-5 h-5" />
+        </button>
+      </aside>
+
+      {/* ── SECONDARY sidebar (light, wide) ──────────────────────────── */}
+      <aside
+        className="w-56 shrink-0 bg-white border-r border-slate-100 flex flex-col"
+        style={{ "--active-color": group.color } as React.CSSProperties}
+      >
+        {/* Header */}
+        <div className="px-4 pt-5 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: group.bg }}
+            >
+              <group.icon className="w-4 h-4" style={{ color: group.color }} />
             </div>
             <div>
-              <p className="font-bold text-[13px] text-sidebar-foreground leading-tight tracking-tight">
-                Médecine du Travail
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+                {group.label}
               </p>
-              <p className="text-[11px] text-sidebar-foreground/45 mt-0.5 tracking-wide">
-                Suivi médical des agents
+              <p className="text-[12px] font-medium text-slate-700 leading-tight">
+                Médecine du Travail
               </p>
             </div>
           </div>
         </div>
 
-        {/* Main nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
-          {GROUPS.map((group) => (
-            <div key={group.title}>
-              {/* Section label */}
-              <p className="px-3 mb-2 text-[10.5px] font-semibold uppercase tracking-widest text-sidebar-foreground/35 select-none">
-                {group.title}
-              </p>
-
-              {/* Primary items */}
-              <div className="space-y-0.5">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.href}
-                    item={item}
-                    active={isActive(item.href, item.exact)}
-                  />
-                ))}
-              </div>
-
-              {/* Secondary item (e.g. Pointage) — soft separator + muted style */}
-              {group.secondary && (
-                <div className="mt-3 pt-3 border-t border-sidebar-border/60">
-                  <NavLink
-                    item={group.secondary}
-                    active={isActive(group.secondary.href)}
-                    muted
-                  />
-                </div>
-              )}
-            </div>
+        {/* Nav items */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+          {group.items.map(item => (
+            <SecLink
+              key={item.href}
+              item={item}
+              active={isActive(item.href, item.exact)}
+            />
           ))}
+
+          {group.secondary && (
+            <div className="pt-3 mt-3 border-t border-slate-100">
+              <SecLink
+                item={group.secondary}
+                active={isActive(group.secondary.href)}
+                muted
+              />
+            </div>
+          )}
         </nav>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-sidebar-border">
-          <p className="text-[10.5px] text-sidebar-foreground/35 leading-snug">
-            Données confidentielles — usage médical exclusif
+        <div className="px-4 py-3 border-t border-slate-100">
+          <p className="text-[10px] text-slate-400 leading-snug">
+            Données confidentielles
           </p>
         </div>
       </aside>
 
-      {/* ── Main content ────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-auto">{children}</main>
+      {/* ── Main content ─────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-auto min-w-0">{children}</main>
     </div>
   );
 }
