@@ -200,15 +200,26 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
     pdf.cell(C3, ROW_H, "Decision medicale",                     border=1, align="C", fill=True,
              new_x="LMARGIN", new_y="NEXT")
 
+    def normalize_decision(raw: str) -> str:
+        """Map any DB value to one of the three official medical decisions."""
+        r = (raw or "").upper().strip()
+        if not r:
+            return ""
+        if "INAPTE" in r:
+            return "Inapte"
+        if "RESERV" in r or "\u00e9SERV" in r or "SOUS" in r:
+            return "Apte sous reserve"
+        return "Apte"
+
     visites = fiche.get("visites", []) if fiche else []
     pdf.set_font("Helvetica", "", 9)
     for v in visites:
-        date_v = v.get("dateVisite") or ""
-        exam   = v.get("examensCliniques") or ""
-        obs    = v.get("observations") or ""
-        pdf.cell(C1, ROW_H, date_v, border=1)
-        pdf.cell(C2, ROW_H, exam,   border=1)
-        pdf.cell(C3, ROW_H, obs,    border=1, new_x="LMARGIN", new_y="NEXT")
+        date_v   = v.get("dateVisite") or ""
+        exam     = v.get("examensCliniques") or "RAS"   # default: Rien A Signaler
+        decision = normalize_decision(v.get("decisionAptitude") or "")
+        pdf.cell(C1, ROW_H, date_v,   border=1)
+        pdf.cell(C2, ROW_H, exam,     border=1)
+        pdf.cell(C3, ROW_H, decision, border=1, new_x="LMARGIN", new_y="NEXT")
 
     empty_count = max(MIN_ROWS - len(visites), 5)
     for _ in range(empty_count):
