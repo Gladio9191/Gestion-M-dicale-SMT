@@ -235,7 +235,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         <div className="mx-4 border-t border-white/15 mb-2 shrink-0" />
 
-        {/* Scrollable nav */}
+        {/* Scrollable nav + clock + calendar */}
         <div className="flex-1 overflow-y-auto px-3 min-h-0 py-1">
           <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/35 px-2 mb-1.5">Menu</p>
           <nav className="space-y-0.5">
@@ -247,36 +247,36 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="mx-2 border-t border-white/15 my-3" />
 
           <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/35 px-2 mb-1.5">Configuration</p>
-          <nav className="space-y-0.5">
+          <nav className="space-y-0.5 mb-3">
             {TOP_CONFIG.map(item => (
               <NavLink key={item.label} item={item} active={isActive(item.href, item.exact)} />
             ))}
           </nav>
-        </div>
 
-        {/* ── Pinned bottom: Clock + jelly + Calendar + jelly + Paramètres ── */}
-        <div className="shrink-0">
+          {/* Jelly separator */}
+          <JellySep />
 
           {/* Clock widget */}
-          <ClockWidget now={now} />
+          <div className="mt-1">
+            <ClockWidget now={now} />
+          </div>
 
           {/* Jelly separator */}
           <JellySep />
 
           {/* Calendar widget */}
           <CalendarWidget />
+        </div>
 
-          {/* Jelly separator */}
+        {/* ── Paramètres — pinned alone at very bottom ── */}
+        <div className="shrink-0 px-3 pb-3 pt-1">
           <JellySep />
-
-          {/* Paramètres */}
-          <div className="px-3 pb-3">
+          <div className="mt-1">
             <NavLink
               item={{ href: "#", label: "Paramètres", icon: Settings }}
               active={false}
             />
           </div>
-
         </div>
       </aside>
 
