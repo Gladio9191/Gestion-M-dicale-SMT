@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   Activity, Users, FileUp, ClipboardList, FileText,
-  ShieldCheck, History, FlaskConical, Plus, ChevronRight,
+  ShieldCheck, History, FlaskConical, Plus, ChevronRight, CalendarCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ const sectionA: NavItem[] = [
   { href: "/generer",    label: "Générer Fiches (Word)",      icon: FileText },
   { href: "/import",     label: "Import Excel",               icon: FileUp },
   { href: "/employees/new", label: "Nouvel agent",           icon: Plus },
+  { href: "/pointage",      label: "Pointage Mensuel",       icon: CalendarCheck },
 ];
 
 const sectionB: NavItem[] = [

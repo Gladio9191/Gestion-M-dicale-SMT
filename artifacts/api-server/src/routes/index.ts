@@ -6,6 +6,7 @@ import statsRouter from "./stats";
 import hygieneRouter from "./hygiene";
 import expertisesManualRouter from "./expertises-manual";
 import registreRouter from "./registre";
+import pointageRouter from "./pointage";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(statsRouter);
 router.use(hygieneRouter);
 router.use(expertisesManualRouter);
 router.use(registreRouter);
+router.use(pointageRouter);
 
 export default router;

@@ -109,6 +109,15 @@ export const visitesHygieneTable = pgTable("visites_hygiene", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const pointageMensuelTable = pgTable("pointage_mensuel", {
+  id:           serial("id").primaryKey(),
+  date:         text("date").notNull().unique(), // "YYYY-MM-DD"
+  heureEntree:  text("heure_entree").notNull().default("08:00"),
+  heureSortie:  text("heure_sortie").notNull().default("16:30"),
+  observations: text("observations"),
+  createdAt:    timestamp("created_at").notNull().defaultNow(),
+});
+
 export const insertEmployeeSchema = createInsertSchema(employeesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAntecedentSchema = createInsertSchema(antecedentsTable).omit({ id: true, createdAt: true });
 export const insertRestrictionSchema = createInsertSchema(restrictionsTable).omit({ id: true, createdAt: true });
