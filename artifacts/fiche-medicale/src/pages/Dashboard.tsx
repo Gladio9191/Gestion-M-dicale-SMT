@@ -1,259 +1,349 @@
-import { useGetStatsOverview, useGetStatsByService, useGetRecentVisites, useGetAptitudeStats } from "@workspace/api-client-react";
-import { Link } from "wouter";
-import { Users, CalendarCheck, ShieldAlert, Layers, Clock, TrendingUp, ArrowUpRight, Activity } from "lucide-react";
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Cell, RadialBarChart, RadialBar,
+  useGetStatsOverview, useGetStatsByService,
+  useGetRecentVisites, useGetAptitudeStats,
+} from "@workspace/api-client-react";
+import { Link } from "wouter";
+import {
+  Users, CalendarCheck, Clock, ShieldAlert, Activity, Layers, MoreHorizontal,
+} from "lucide-react";
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
+  Tooltip, CartesianGrid, PieChart, Pie, Cell,
 } from "recharts";
 
-/* ── Decision config ──────────────────────────────────────────────────── */
+/* ═══ Colors ═════════════════════════════════════════════════════════ */
+const BLUE   = "#2563EB";
+const TEAL   = "#14B8A6";
+const PURPLE = "#6366F1";
+const AMBER  = "#F59E0B";
+const GREEN  = "#10B981";
+const PINK   = "#EC4899";
+
 const DECISION_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  APTE:             { label: "Apte",              color: "#059669", bg: "#ECFDF5" },
-  INAPTE:           { label: "Inapte",            color: "#DC2626", bg: "#FEF2F2" },
-  APTE_SOUS_RESERVE:{ label: "Apte sous réserve", color: "#D97706", bg: "#FFFBEB" },
+  APTE:              { label: "Apte",              color: GREEN,  bg: "#ECFDF5" },
+  INAPTE:            { label: "Inapte",            color: "#EF4444", bg: "#FEF2F2" },
+  APTE_SOUS_RESERVE: { label: "Sous réserve",     color: AMBER,  bg: "#FFFBEB" },
 };
 
-/* ── Stat card ────────────────────────────────────────────────────────── */
+/* ═══ Mini ring SVG (like CLEARIQ stat card) ═════════════════════════ */
+function MiniRing({ pct, color }: { pct: number; color: string }) {
+  const r    = 22;
+  const circ = 2 * Math.PI * r;
+  const dash = Math.min(pct / 100, 1) * circ;
+  return (
+    <svg width="58" height="58" viewBox="0 0 58 58">
+      <circle cx="29" cy="29" r={r} fill="none" stroke="#EEF2FF" strokeWidth="6" />
+      <circle
+        cx="29" cy="29" r={r}
+        fill="none" stroke={color} strokeWidth="6"
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        transform="rotate(-90 29 29)"
+      />
+      <text x="29" y="33" textAnchor="middle"
+        fontSize="11" fontWeight="800" fill={color} fontFamily="Inter,sans-serif">
+        {pct}%
+      </text>
+    </svg>
+  );
+}
+
+/* ═══ Stat card — CLEARIQ style ══════════════════════════════════════ */
 function StatCard({
-  label, value, sub, icon: Icon, color, bg, trend,
+  label, value, sub, ringPct, ringColor, trend, trendUp,
 }: {
   label: string; value: number | string; sub?: string;
-  icon: React.ElementType; color: string; bg: string; trend?: string;
+  ringPct: number; ringColor: string;
+  trend?: string; trendUp?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl p-5 card-shadow flex flex-col gap-4">
+    <div className="bg-white rounded-2xl p-5 card-shadow flex flex-col justify-between min-h-[130px]">
       <div className="flex items-start justify-between">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-          style={{ backgroundColor: bg }}
-        >
-          <Icon className="w-5 h-5" style={{ color }} />
-        </div>
-        {trend && (
-          <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-            <ArrowUpRight className="w-3 h-3" />{trend}
-          </span>
-        )}
+        <p className="text-[12px] font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
+        <MiniRing pct={ringPct} color={ringColor} />
       </div>
       <div>
-        <p className="text-[28px] font-bold text-slate-800 leading-none">{value}</p>
-        <p className="text-[12px] font-medium text-slate-500 mt-1.5">{label}</p>
-        {sub && <p className="text-[11px] text-slate-400 mt-0.5">{sub}</p>}
+        <p className="text-[32px] font-extrabold text-slate-800 leading-none mb-1">{value}</p>
+        <div className="flex items-center gap-2">
+          {trend && (
+            <span className={`text-[11px] font-bold ${trendUp ? "text-green-500" : "text-red-400"}`}>
+              {trendUp ? "▲" : "▼"} {trend}
+            </span>
+          )}
+          {sub && <span className="text-[11px] text-slate-400">{sub}</span>}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ── Section header ───────────────────────────────────────────────────── */
-function SectionHeader({ icon: Icon, title, color }: { icon: React.ElementType; title: string; color: string }) {
+/* ═══ Bubble chart — Income Analysis style ═══════════════════════════ */
+function BubbleChart({ data }: { data: { label: string; count: number; color: string }[] }) {
+  const total = data.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return (
+    <div className="h-48 flex items-center justify-center text-slate-400 text-[13px]">
+      Aucune donnée
+    </div>
+  );
+
+  const sizes = [120, 88, 68];
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>
-        <Icon className="w-3.5 h-3.5" style={{ color }} />
-      </div>
-      <h2 className="text-[13px] font-semibold text-slate-700">{title}</h2>
+    <div className="relative h-48 flex items-center justify-center">
+      {data.slice(0, 3).map((d, i) => {
+        const sz  = sizes[i] ?? 60;
+        const pct = Math.round((d.count / total) * 100);
+        const offsets = [
+          { top: "30%", left: "12%" },
+          { top: "8%",  left: "42%" },
+          { top: "38%", left: "55%" },
+        ];
+        return (
+          <div
+            key={d.label}
+            className="absolute flex flex-col items-center justify-center rounded-full text-white font-bold shadow-lg"
+            style={{
+              width: sz, height: sz,
+              backgroundColor: d.color,
+              ...offsets[i],
+              boxShadow: `0 8px 24px ${d.color}44`,
+            }}
+          >
+            <span className="text-[18px] font-extrabold leading-none">{pct}</span>
+            <span className="text-[9px] font-semibold opacity-90 mt-0.5 text-center px-1 leading-tight">
+              {d.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/* ── Custom tooltip ───────────────────────────────────────────────────── */
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-lg text-[12px]">
-      <p className="font-semibold text-slate-700">{label}</p>
-      <p className="text-blue-600 font-bold mt-0.5">{payload[0].value} employés</p>
-    </div>
-  );
-}
-
-/* ── Dashboard ────────────────────────────────────────────────────────── */
+/* ═══ Dashboard ══════════════════════════════════════════════════════ */
 export default function Dashboard() {
-  const { data: overview }       = useGetStatsOverview();
-  const { data: byService }      = useGetStatsByService();
-  const { data: recentVisites }  = useGetRecentVisites({ limit: 8 });
-  const { data: aptitudeStats }  = useGetAptitudeStats();
+  const { data: overview }      = useGetStatsOverview();
+  const { data: byService }     = useGetStatsByService();
+  const { data: recentVisites } = useGetRecentVisites({ limit: 6 });
+  const { data: aptitudeStats } = useGetAptitudeStats();
 
-  const STAT_CARDS = [
-    { label: "Employés suivis",      value: overview?.totalEmployees ?? "—",    icon: Users,         color: "#2563EB", bg: "#EFF6FF" },
-    { label: "Visites cette année",  value: overview?.visitesThisYear ?? "—",   icon: CalendarCheck, color: "#059669", bg: "#ECFDF5", trend: "+0%" },
-    { label: "Total visites",        value: overview?.totalVisites ?? "—",       icon: Clock,         color: "#7C3AED", bg: "#F5F3FF", sub: "Depuis le début" },
-    { label: "Inaptes",              value: overview?.inapteCount ?? "—",        icon: ShieldAlert,   color: "#DC2626", bg: "#FEF2F2" },
-    { label: "Restrictions actives", value: overview?.restrictionsCount ?? "—", icon: Activity,      color: "#D97706", bg: "#FFFBEB" },
-    { label: "Services",             value: overview?.servicesCount ?? "—",      icon: Layers,        color: "#0891B2", bg: "#F0F9FF" },
+  const totalVisites = overview?.totalVisites ?? 0;
+
+  const STATS = [
+    { label: "Nouveaux Agents",    value: overview?.totalEmployees ?? "—",     ringPct: 10, ringColor: BLUE,   trend: "0%",  trendUp: true,  sub: "Ce mois" },
+    { label: "Total Agents",       value: overview?.totalEmployees ?? "—",     ringPct: 20, ringColor: TEAL,   trend: "0%",  trendUp: true,  sub: "Ce mois" },
+    { label: "Total Visites",      value: totalVisites,                        ringPct: 20, ringColor: PURPLE, trend: "0%",  trendUp: true,  sub: "Depuis le début" },
+    { label: "Restrictions",       value: overview?.restrictionsCount ?? "—",  ringPct: 20, ringColor: AMBER,  trend: "0%",  trendUp: false, sub: "Ce mois" },
   ];
 
-  /* Radial data for aptitude */
-  const totalApt = aptitudeStats?.reduce((s, x) => s + x.count, 0) ?? 0;
-  const radialData = aptitudeStats?.map(s => ({
-    ...s,
-    pct: totalApt > 0 ? Math.round((s.count / totalApt) * 100) : 0,
-    fill: DECISION_CFG[s.decision]?.color ?? "#94a3b8",
+  /* Bubble data from aptitude stats */
+  const bubbleColors = [BLUE, TEAL, GREEN];
+  const bubbleData = (aptitudeStats ?? []).slice(0, 3).map((s, i) => ({
+    label: DECISION_CFG[s.decision]?.label ?? s.decision,
+    count: s.count,
+    color: bubbleColors[i],
   }));
 
+  /* Donut data */
+  const totalApt = aptitudeStats?.reduce((s, x) => s + x.count, 0) ?? 0;
+
   return (
-    <div className="p-6 max-w-[1400px] mx-auto space-y-6">
+    <div className="p-6 max-w-[1380px] mx-auto space-y-6">
 
-      {/* ── Page header ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between pt-2">
-        <div>
-          <h1 className="text-[22px] font-bold text-slate-800 tracking-tight">Tableau de bord</h1>
-          <p className="text-[13px] text-slate-500 mt-0.5">Vue d'ensemble de l'activité médicale</p>
-        </div>
-        <Link
-          href="/employees/new"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[13px] font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
-        >
-          <Users className="w-4 h-4" />
-          Nouvel Agent
-        </Link>
+      {/* ── 4 stat cards ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        {STATS.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
-      {/* ── Stat cards ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {STAT_CARDS.map(c => (
-          <StatCard key={c.label} {...c} />
-        ))}
-      </div>
-
-      {/* ── Charts row ───────────────────────────────────────────────── */}
+      {/* ── Row: Pill bar chart + Income Analysis bubble ─────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* Bar chart — Employés par service */}
+        {/* Pill bar chart — Visites par service */}
         <div className="lg:col-span-2 bg-white rounded-2xl p-6 card-shadow">
-          <SectionHeader icon={TrendingUp} title="Employés par service" color="#2563EB" />
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-[15px] font-bold text-slate-800">Agents par Service</h2>
+            <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+              <MoreHorizontal className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
           {byService && byService.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={byService} margin={{ top: 0, right: 4, left: -16, bottom: 0 }} barSize={28}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                <XAxis
-                  dataKey="service"
-                  tick={{ fontSize: 11, fill: "#94A3B8", fontFamily: "Inter" }}
-                  axisLine={false} tickLine={false}
+              <BarChart data={byService} barSize={18} margin={{ top:0, right:4, left:-16, bottom:0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#F0F4FF" vertical={false} />
+                <XAxis dataKey="service" tick={{ fontSize:11, fill:"#94A3B8", fontFamily:"Inter" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:10, fill:"#CBD5E1", fontFamily:"Inter" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ fontSize:12, borderRadius:12, border:"1px solid #EEF2FF", boxShadow:"0 8px 24px rgba(99,130,255,.15)", fontFamily:"Inter" }}
+                  cursor={{ fill:"#F0F4FF", radius:8 }}
                 />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "#CBD5E1", fontFamily: "Inter" }}
-                  axisLine={false} tickLine={false} allowDecimals={false}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "#F8FAFC" }} />
-                <Bar dataKey="count" fill="#2563EB" radius={[8, 8, 0, 0]} name="Employés" />
+                <Bar dataKey="count" name="Agents" radius={[12,12,12,12]} fill={BLUE} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-52 flex items-center justify-center text-slate-400 text-[13px]">
-              Aucune donnée disponible
-            </div>
+            <div className="h-52 flex items-center justify-center text-slate-400 text-[13px]">Aucune donnée</div>
           )}
         </div>
 
-        {/* Donut — Décisions d'aptitude */}
+        {/* Bubble chart — Analyse aptitude */}
         <div className="bg-white rounded-2xl p-6 card-shadow">
-          <SectionHeader icon={Activity} title="Décisions d'aptitude" color="#7C3AED" />
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-[15px] font-bold text-slate-800">Analyse Aptitude</h2>
+            <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+              <MoreHorizontal className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
+          <BubbleChart data={bubbleData} />
+          {/* Legend */}
+          <div className="mt-3 space-y-1.5">
+            {bubbleData.map((d, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+                <span className="text-[12px] text-slate-500 flex-1">{d.label}</span>
+                <span className="text-[12px] font-bold text-slate-700">{d.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row: Donut structure + Performance table ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Donut — Structure médicale */}
+        <div className="bg-white rounded-2xl p-6 card-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[15px] font-bold text-slate-800">Structure Médicale</h2>
+            <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+              <MoreHorizontal className="w-4 h-4 text-slate-400" />
+            </button>
+          </div>
           {aptitudeStats && aptitudeStats.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie
-                    data={aptitudeStats}
-                    dataKey="count"
-                    nameKey="decision"
-                    cx="50%" cy="50%"
-                    innerRadius={48}
-                    outerRadius={72}
-                    strokeWidth={0}
-                    paddingAngle={3}
-                  >
-                    {aptitudeStats.map((entry, idx) => (
-                      <Cell
-                        key={idx}
-                        fill={DECISION_CFG[entry.decision]?.color ?? "#94a3b8"}
-                        cornerRadius={4}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v, n) => [v, DECISION_CFG[n as string]?.label ?? n]}
-                    contentStyle={{ fontSize: 12, borderRadius: 12, border: "1px solid #E2E8F0", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-2 mt-3">
+              <div className="relative">
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={aptitudeStats}
+                      dataKey="count"
+                      nameKey="decision"
+                      cx="50%" cy="50%"
+                      innerRadius={52} outerRadius={72}
+                      strokeWidth={0} paddingAngle={4}
+                    >
+                      {aptitudeStats.map((_, i) => (
+                        <Cell key={i} fill={[TEAL, "#EF4444", AMBER][i % 3]} cornerRadius={6} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v, n) => [v, DECISION_CFG[n as string]?.label ?? n]}
+                      contentStyle={{ fontSize:12, borderRadius:12, border:"1px solid #EEF2FF" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center label */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[11px] font-semibold text-slate-400">Total</span>
+                  <span className="text-[20px] font-extrabold text-slate-800">{totalApt > 0 ? "100%" : "—"}</span>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
                 {aptitudeStats.map((s, i) => {
-                  const cfg = DECISION_CFG[s.decision] ?? { label: s.decision, color: "#94a3b8", bg: "#F8FAFC" };
+                  const cfg = DECISION_CFG[s.decision] ?? { label: s.decision, color: "#94a3b8" };
                   const pct = totalApt > 0 ? Math.round((s.count / totalApt) * 100) : 0;
+                  const barColor = [TEAL, "#EF4444", AMBER][i % 3];
                   return (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
-                      <span className="text-[12px] text-slate-600 flex-1">{cfg.label}</span>
-                      <span className="text-[12px] font-bold text-slate-800">{s.count}</span>
-                      <span
-                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{ backgroundColor: cfg.bg, color: cfg.color }}
-                      >{pct}%</span>
+                    <div key={i}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[12px] text-slate-600 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: barColor }} />
+                          {cfg.label}
+                        </span>
+                        <span className="text-[12px] font-bold text-slate-700">{pct}%</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width:`${pct}%`, backgroundColor: barColor }} />
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </>
           ) : (
-            <div className="h-52 flex items-center justify-center text-slate-400 text-[13px]">
-              Aucune visite enregistrée
-            </div>
+            <div className="h-48 flex items-center justify-center text-slate-400 text-[13px]">Aucune visite</div>
           )}
         </div>
-      </div>
 
-      {/* ── Recent visits table ───────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl card-shadow overflow-hidden">
-        <div className="px-6 pt-5 pb-4 border-b border-slate-100">
-          <SectionHeader icon={Clock} title="Visites récentes" color="#0891B2" />
-        </div>
-        {recentVisites && recentVisites.length > 0 ? (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-100">
-                {["Matricule", "Nom", "Service", "Date", "Décision"].map(h => (
-                  <th key={h} className="text-left px-6 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {recentVisites.map((v) => {
-                const cfg = v.decisionAptitude ? (DECISION_CFG[v.decisionAptitude] ?? null) : null;
-                return (
-                  <tr key={v.id} className="table-row-hover border-b border-slate-50 last:border-0">
-                    <td className="px-6 py-4 font-mono text-[12px] text-slate-400">{v.matricule}</td>
-                    <td className="px-6 py-4">
-                      <Link href={`/employees/${v.matricule}`} className="text-[13px] font-semibold text-slate-800 hover:text-blue-600 transition-colors">
-                        {v.nomPrenom}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 text-[13px] text-slate-500">{v.service ?? "—"}</td>
-                    <td className="px-6 py-4 text-[13px] text-slate-500 font-mono">{v.dateVisite}</td>
-                    <td className="px-6 py-4">
-                      {cfg ? (
-                        <span
-                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                          style={{ backgroundColor: cfg.bg, color: cfg.color }}
-                        >
-                          {cfg.label}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 text-[13px]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <div className="py-16 text-center text-slate-400 text-[13px]">
-            Aucune visite enregistrée
+        {/* Performance table — Activités récentes */}
+        <div className="lg:col-span-2 bg-white rounded-2xl card-shadow overflow-hidden">
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+            <h2 className="text-[15px] font-bold text-slate-800">Activités Récentes</h2>
+            <button className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+              <MoreHorizontal className="w-4 h-4 text-slate-400" />
+            </button>
           </div>
-        )}
+          {recentVisites && recentVisites.length > 0 ? (
+            <table className="w-full">
+              <thead>
+                <tr>
+                  {["Nom", "Service", "Date", "Décision", "Action"].map(h => (
+                    <th key={h} className="text-left px-6 py-3 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {recentVisites.map((v) => {
+                  const cfg = v.decisionAptitude ? (DECISION_CFG[v.decisionAptitude] ?? null) : null;
+                  const initials = (v.nomPrenom ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0,2).toUpperCase();
+                  const avatarColors = [BLUE, TEAL, PURPLE, PINK, AMBER, GREEN];
+                  const avatarColor  = avatarColors[v.id % avatarColors.length] ?? BLUE;
+                  return (
+                    <tr key={v.id} className="table-row-hover border-b border-slate-50 last:border-0">
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-extrabold text-white shrink-0"
+                            style={{ backgroundColor: avatarColor }}
+                          >
+                            {initials}
+                          </div>
+                          <div>
+                            <Link href={`/employees/${v.matricule}`} className="text-[13px] font-semibold text-slate-800 hover:text-[#2563EB] transition-colors">
+                              {v.nomPrenom}
+                            </Link>
+                            <p className="text-[10px] text-slate-400">{v.matricule}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5 text-[12px] text-slate-500">{v.service ?? "—"}</td>
+                      <td className="px-6 py-3.5 text-[12px] font-mono text-slate-500">{v.dateVisite}</td>
+                      <td className="px-6 py-3.5">
+                        {cfg ? (
+                          <span
+                            className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide"
+                            style={{ backgroundColor: cfg.bg, color: cfg.color }}
+                          >
+                            {cfg.label}
+                          </span>
+                        ) : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <Link
+                          href={`/employees/${v.matricule}`}
+                          className="flex items-center gap-1.5 text-[11px] font-semibold text-[#2563EB] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          Voir
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="py-16 text-center text-slate-400 text-[13px]">Aucune activité enregistrée</div>
+          )}
+        </div>
       </div>
     </div>
   );
