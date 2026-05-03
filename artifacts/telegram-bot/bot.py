@@ -221,25 +221,37 @@ def generate_fiche_pdf(matricule: str, emp: dict) -> bytes:
             return "APTE SOUS R\u00c9SERVE"
         return "APTE"
 
+    def fmt_date(raw: str) -> str:
+        """Convert any date string to DD/MM/YYYY format."""
+        if not raw:
+            return ""
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+            try:
+                from datetime import datetime
+                return datetime.strptime(raw[:10], fmt).strftime("%d/%m/%Y")
+            except ValueError:
+                continue
+        return raw[:10]  # fallback: return as-is
+
     visites = fiche.get("visites", []) if fiche else []
     for v in visites:
-        date_v   = v.get("dateVisite") or ""
+        date_v   = fmt_date(v.get("dateVisite") or "")
         exam     = v.get("examensCliniques") or "RAS"
         decision = normalize_decision(v.get("decisionAptitude") or "")
-        # date + exam in regular font
+        # date + exam — regular font, centered
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(C1, ROW_H, date_v, border=1)
-        pdf.cell(C2, ROW_H, exam,   border=1)
-        # decision in bold + ALL-CAPS
+        pdf.cell(C1, ROW_H, date_v, border=1, align="C")
+        pdf.cell(C2, ROW_H, exam,   border=1, align="C")
+        # decision — bold, ALL-CAPS, centered
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(C3, ROW_H, decision, border=1, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(C3, ROW_H, decision, border=1, align="C", new_x="LMARGIN", new_y="NEXT")
 
     empty_count = max(MIN_ROWS - len(visites), 5)
     pdf.set_font("Helvetica", "", 9)
     for _ in range(empty_count):
-        pdf.cell(C1, ROW_H, "", border=1)
-        pdf.cell(C2, ROW_H, "", border=1)
-        pdf.cell(C3, ROW_H, "", border=1, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(C1, ROW_H, "", border=1, align="C")
+        pdf.cell(C2, ROW_H, "", border=1, align="C")
+        pdf.cell(C3, ROW_H, "", border=1, align="C", new_x="LMARGIN", new_y="NEXT")
 
     return bytes(pdf.output())
 
