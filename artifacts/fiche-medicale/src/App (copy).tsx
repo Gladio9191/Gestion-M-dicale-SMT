@@ -1,0 +1,61 @@
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import NotFound from "@/pages/not-found";
+import Layout from "@/components/Layout";
+import Dashboard from "@/pages/Dashboard";
+import EmployeeList from "@/pages/EmployeeList";
+import NewEmployee from "@/pages/NewEmployee";
+import FicheTechnique from "@/pages/FicheTechnique";
+import ImportExcel from "@/pages/ImportExcel";
+import GenererFiches from "@/pages/GenererFiches";
+import VisiteHygiene from "@/pages/VisiteHygiene";
+import HistoriqueHygiene from "@/pages/HistoriqueHygiene";
+import SaisieExpertises from "@/pages/SaisieExpertises";
+import RegistreActivites from "@/pages/RegistreActivites";
+import PointageMensuel from "@/pages/PointageMensuel";
+import EvaluationObjectifs from "@/pages/EvaluationObjectifs";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000 },
+  },
+});
+
+function Router() {
+  return (
+    <Layout>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/employees" component={EmployeeList} />
+        <Route path="/employees/new" component={NewEmployee} />
+        <Route path="/import" component={ImportExcel} />
+        <Route path="/generer" component={GenererFiches} />
+        <Route path="/registre" component={RegistreActivites} />
+        <Route path="/hygiene/new" component={VisiteHygiene} />
+        <Route path="/hygiene/historique" component={HistoriqueHygiene} />
+        <Route path="/expertises" component={SaisieExpertises} />
+        <Route path="/pointage" component={PointageMensuel} />
+        <Route path="/evaluation" component={EvaluationObjectifs} />
+        <Route path="/employees/:matricule" component={FicheTechnique} />
+        <Route component={NotFound} />
+      </Switch>
+    </Layout>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
