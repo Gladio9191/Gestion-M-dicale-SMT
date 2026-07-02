@@ -425,6 +425,31 @@ export default function GenererFiches() {
     } catch { toast({ title: "Fiche Engine non disponible", variant: "destructive" }); }
     setAuditLoading(false);
   };
+
+  /* ── Telegram send state ─────────────────────────────────────────────────── */
+  const [tgChatId, setTgChatId]   = useState("");
+  const [tgMat, setTgMat]         = useState("");
+  const [tgSending, setTgSending] = useState(false);
+  const [tgResult, setTgResult]   = useState<{ok:boolean;message?:string;error?:string} | null>(null);
+
+  const sendViaTelegram = async () => {
+    const mat = parseInt(tgMat.trim(), 10);
+    const chat = tgChatId.trim();
+    if (isNaN(mat) || !chat) return;
+    setTgSending(true); setTgResult(null);
+    try {
+      const res = await fetch("/api/fiche-engine/send-telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matricule: mat, chat_id: chat }),
+      });
+      const d = await res.json();
+      setTgResult(res.ok ? { ok: true, message: d.message } : { ok: false, error: d.error });
+      if (res.ok) toast({ title: `Fiche envoyée via Telegram ✓` });
+      else toast({ title: d.error ?? "Erreur Telegram", variant: "destructive" });
+    } catch { toast({ title: "Fiche Engine non disponible", variant: "destructive" }); setTgResult({ ok: false, error: "Service non disponible" }); }
+    setTgSending(false);
+  };
   const [singleMat, setSingleMat]           = useState("");
   const [singleEmployee, setSingleEmployee] = useState<{ nom: string; prenom: string; direction?: string | null; service?: string | null; age?: number | null } | null>(null);
   const [singleLooking, setSingleLooking]   = useState(false);
@@ -825,6 +850,64 @@ export default function GenererFiches() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Envoyer via Telegram ─────────────────────────────────────── */}
+          {engineLoaded && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">E</span>
+                <span className="text-sm font-semibold text-foreground">Envoyer via Telegram</span>
+                <span className="text-xs text-muted-foreground">— génère le PDF et l'envoie directement dans une conversation</span>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Matricule</label>
+                    <input
+                      type="text"
+                      placeholder="ex: 1234"
+                      value={tgMat}
+                      onChange={(e) => { setTgMat(e.target.value); setTgResult(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && sendViaTelegram()}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      Chat ID Telegram
+                      <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="ml-1.5 text-primary underline">obtenir mon ID</a>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="ex: 123456789"
+                      value={tgChatId}
+                      onChange={(e) => { setTgChatId(e.target.value); setTgResult(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && sendViaTelegram()}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={sendViaTelegram}
+                  disabled={!tgMat.trim() || !tgChatId.trim() || tgSending}
+                  className="gap-2 bg-blue-500 hover:bg-blue-600"
+                >
+                  {tgSending
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Envoi en cours…</>
+                    : <><span className="text-base leading-none">✈️</span>Envoyer la fiche PDF</>}
+                </Button>
+                {tgResult && (
+                  tgResult.ok
+                    ? <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700"><CheckCircle className="w-4 h-4 shrink-0" />{tgResult.message}</div>
+                    : <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"><AlertCircle className="w-4 h-4 shrink-0" />{tgResult.error}</div>
+                )}
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Info className="w-3 h-3 shrink-0" />
+                  Le destinataire doit avoir démarré une conversation avec le bot en envoyant <code className="bg-muted px-1 rounded">/start</code>
+                </p>
               </div>
             </div>
           )}
