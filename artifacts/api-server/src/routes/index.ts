@@ -7,6 +7,7 @@ import hygieneRouter from "./hygiene";
 import expertisesManualRouter from "./expertises-manual";
 import registreRouter from "./registre";
 import pointageRouter from "./pointage";
+import telegramSendsRouter from "./telegram-sends";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(hygieneRouter);
 router.use(expertisesManualRouter);
 router.use(registreRouter);
 router.use(pointageRouter);
+router.use(telegramSendsRouter);
 
 export default router;

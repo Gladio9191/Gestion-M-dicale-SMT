@@ -487,6 +487,29 @@ def send_telegram():
         logger.error("Telegram send error: %s", e)
         return jsonify({"error": str(e)}), 502
 
+    # ── Log to Express API (best-effort, non-blocking) ────────────────────
+    nom_prenom = f"{fiche.get('nom','')} {fiche.get('prenom','')}".strip() or str(matricule)
+    direction  = fiche.get("direction", "")
+    try:
+        log_body = {
+            "matricule": matricule,
+            "chatId": chat_id,
+            "status": "success",
+            "nomPrenom": nom_prenom,
+            "direction": direction,
+        }
+        log_data = json.dumps(log_body).encode()
+        log_req  = urllib.request.Request(
+            "http://localhost:80/api/telegram-sends",
+            data=log_data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(log_req, timeout=5) as _:
+            pass
+    except Exception as log_err:
+        logger.warning("Could not log Telegram send: %s", log_err)
+
     return jsonify({"ok": True, "message": f"Fiche {matricule} envoyée au chat {chat_id} ✓"})
 
 
