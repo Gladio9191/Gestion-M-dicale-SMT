@@ -1,0 +1,59 @@
+# Prompt pour Replit Agent — Logique de génération des Fiches Techniques Médicales
+
+Contexte : mon application (backend + frontend, peu importe le langage détecté dans le repo) doit générer des "Fiches Techniques Médicales" à partir d'un classeur Excel `Data-Base.xlsx` contenant plusieurs feuilles. Implémente la logique ci-dessous dans le langage/framework déjà utilisé dans ce projet (regarde le code existant avant de choisir où et comment l'intégrer).
+
+Un fichier de référence `fiche_medicale.py` (Python/pandas) est fourni en pièce jointe : il contient déjà toute cette logique testée et validée sur mes vraies données. **Utilise-le comme spécification exacte du comportement attendu**, même si tu dois le traduire vers un autre langage — ne réinvente pas la logique, transpose-la fidèlement.
+
+## Règle d'or absolue (non négociable)
+
+**Le matricule ne doit JAMAIS être deviné, corrigé ou rapproché automatiquement.** Un mauvais matricule = la fiche d'un mauvais agent envoyée. Toujours faire un `match` strict et exact. Si un matricule n'existe pas dans les données, retourner une erreur explicite ("Matricule introuvable") plutôt que d'improviser un résultat.
+
+## Source des données : Data-Base.xlsx (8 feuilles)
+
+- `VMS 2017- 2026` : historique des visites médicales (colonnes clés : Mle, dates, Dir, Fonction, EX Clinique, décision et observations, CS SOINS MT, CS EXPERTISE MS, RX Pulmo, BILAN)
+- `Personnel Global` : source RH sécurisée (Matricule, direction, Désignation d'objet = intitulé de poste réel, Texte domaine du pers. = service, Né(e) le, Age)
+- `Etat RM Global` : restrictions médicales (Mle, Motif Médical, Nature RM, Date RM, Décision, OBSERVATIONS)
+- `Campagne PSA 2024`, `Camp.Mald.Métabo 2023`, `Check Up HC 2024`, `Check Up PAR 2022`, `Check Up PAR 2023` : campagnes de dépistage annexes
+
+## Fonctionnalités à implémenter
+
+### 1. Génération d'une fiche par matricule
+- Infos perso (matricule, âge, direction, poste actuel) : le "poste actuel" vient **toujours** de `Personnel Global` → colonne `Désignation d'objet` (jamais de VMS), même en cas de promotion/avancement de l'agent.
+- ATCD notables : synthèse des RM à motif médical, résultats PSA anormaux, problèmes métaboliques, check-up PAR/HC avec résultat anormal.
+- Timeline chronologique des visites (2017→2026, ordre croissant) :
+  - Les visites **VMS** affichent la **date complète** (jour/mois/année).
+  - Les événements des feuilles annexes (PSA, maladies métaboliques, check-up PAR/HC) affichent **uniquement l'année** + résultat + suivi (jamais la date complète).
+  - Rapprochement entre VMS et feuilles annexes fait **par année** (les dates exactes ne coïncident pas toujours dans les données sources).
+- Décision médicale importante : dernière décision de visite, recoupée avec toute restriction médicale (RM) active.
+- Expertises (OPHTALMO, PSY, ORL, VERTIGE) : champs **toujours éditables manuellement**. Pré-remplissage automatique **uniquement** si une valeur réelle existe déjà dans `Etat RM Global` (motif Ophtalmo/Psy/ORL) — ne jamais générer ou deviner une valeur clinique. VERTIGE reste 100% manuel.
+
+### 2. Génération en lot (plusieurs matricules à la fois)
+Le médecin doit pouvoir fournir la liste des matricules de 3 façons :
+1. **Texte collé/tapé** (copié depuis un email) → extraire les matricules par regex sur des nombres de 4 à 7 chiffres.
+2. **Fichier Excel/CSV** → détecter automatiquement la colonne "Matricule" (et "type de visite demandée" si présente).
+3. **Image/photo/capture d'écran** → OCR (ex: Tesseract) pour extraire le texte puis appliquer la même extraction par regex. Avertir clairement dans l'UI que l'OCR n'est pas fiable à 100% et doit être vérifié avant génération.
+
+Pour chaque matricule du lot, si introuvable dans la base : ne pas faire échouer tout le lot, renvoyer une erreur explicite pour cette ligne uniquement et continuer les autres.
+
+### 3. Outils de contrôle qualité du matricule (à exposer quelque part dans l'UI, ex: page "Personnel" ou "Audit")
+
+a) **Confirmation instantanée** : dès qu'un matricule est saisi/scanné, afficher immédiatement Direction + Poste + Date de naissance connus pour ce matricule, AVANT de lancer la génération complète — pour que l'utilisateur confirme visuellement "c'est le bon agent".
+
+b) **Audit doublons par date de naissance** : détecter les matricules différents partageant exactement la même date de naissance dans `Personnel Global`. **Important** : exclure les dates `01/01` et `31/12` de cette détection, ce sont des dates placeholder dans cette base (année connue seulement) et génèrent de faux positifs.
+
+c) **Audit Direction** : comparer la Direction du matricule entre `VMS` (colonne Dir) et `Personnel Global` (colonne direction). Un écart est un signal à vérifier (peut être une vraie erreur de saisie, ou une réorganisation de service touchant plusieurs matricules à la fois — regrouper les écarts par motif "X -> Y" pour distinguer les deux cas).
+
+d) **Audit Fonction** : comparer la `Désignation d'objet` (Personnel Global, RH) avec l'historique des `Fonction` de VMS pour le même matricule. Normaliser le texte avant comparaison : majuscules, suppression des accents, espaces multiples réduits, et développer les abréviations connues : `1/4` = `QUART`, `PL` (en fin d'intitulé) = `PRINCIPAL`. Si l'intitulé RH n'apparaît jamais (même normalisé) dans l'historique VMS, c'est un signal à vérifier — **mais ce signal seul est de confiance modérée car il peut s'agir d'un simple avancement/promotion de l'agent**, pas forcément une erreur.
+
+e) **Audit croisé** : combiner (c) et (d) par matricule.
+   - **Confiance "haute"** : les deux signaux (Direction ET Fonction) sont discordants en même temps → très peu probable qu'une simple promotion explique les deux à la fois, à vérifier en priorité.
+   - **Confiance "moderee"** : un seul signal discordant → peut être une promotion normale, à vérifier avec prudence, ne pas traiter comme une erreur confirmée.
+
+Aucun de ces audits ne doit corriger quoi que ce soit automatiquement : ils signalent seulement, à charge pour l'utilisateur de vérifier et corriger manuellement dans `Data-Base.xlsx`.
+
+## Consignes d'implémentation
+
+- Regarde d'abord la structure existante du projet (langage, framework, où sont les autres pages/routes liées à "Générer Fiches", "Personnel", "Expertises") avant d'ajouter du code, pour rester cohérent avec l'architecture actuelle.
+- Gère les valeurs manquantes/NaN sans jamais planter.
+- N'invente aucune donnée médicale : tout ce qui apparaît sur la fiche doit provenir des feuilles Excel sources, sauf les champs Expertises qui restent une saisie manuelle de l'utilisateur.
+- Si une colonne attendue (ex: `Désignation d'objet`) n'existe pas encore dans le fichier Excel importé, ne pas planter : gérer l'absence proprement (valeur vide) et permettre à l'utilisateur de mettre à jour son fichier plus tard.

@@ -357,7 +357,74 @@ export default function GenererFiches() {
   };
 
   /* ── Tab state ──────────────────────────────────────────────────────────── */
-  const [activeTab, setActiveTab]           = useState<"single" | "bulk">("single");
+  const [activeTab, setActiveTab]           = useState<"single" | "bulk" | "engine">("single");
+
+  /* ── Fiche Engine backend state ─────────────────────────────────────────── */
+  const [engineLoaded, setEngineLoaded]           = useState(false);
+  const [engineInfo, setEngineInfo]               = useState<{filename?:string;personnel_count?:number;vms_rows?:number} | null>(null);
+  const [engineUploading, setEngineUploading]     = useState(false);
+  const engineFileRef                             = useRef<HTMLInputElement>(null);
+  const [engineConfirmMat, setEngineConfirmMat]   = useState("");
+  const [engineConfirmRes, setEngineConfirmRes]   = useState<Record<string,unknown> | null>(null);
+  const [engineConfirming, setEngineConfirming]   = useState(false);
+  const [engineBatchText, setEngineBatchText]     = useState("");
+  const [engineBatchRes, setEngineBatchRes]       = useState<Array<Record<string,unknown>> | null>(null);
+  const [engineGenerating, setEngineGenerating]   = useState(false);
+  const [auditTab, setAuditTab]                   = useState<"duplicates"|"direction"|"fonction"|"crossed"|null>(null);
+  const [auditData, setAuditData]                 = useState<Record<string,unknown> | null>(null);
+  const [auditLoading, setAuditLoading]           = useState(false);
+
+  const checkEngineStatus = async () => {
+    try {
+      const res = await fetch("/api/fiche-engine/status");
+      if (res.ok) { const d = await res.json(); setEngineLoaded(d.loaded); if (d.loaded) setEngineInfo(d); }
+    } catch { /* engine not running */ }
+  };
+
+  const uploadToEngine = async (file: File) => {
+    setEngineUploading(true);
+    const fd = new FormData(); fd.append("file", file);
+    try {
+      const res = await fetch("/api/fiche-engine/upload", { method: "POST", body: fd });
+      const d = await res.json();
+      if (res.ok) { setEngineLoaded(true); setEngineInfo(d); toast({ title: `Base chargée — ${d.personnel_count} agents, ${d.vms_rows} lignes VMS ✓` }); }
+      else toast({ title: d.error ?? "Erreur upload", variant: "destructive" });
+    } catch { toast({ title: "Fiche Engine non disponible", variant: "destructive" }); }
+    setEngineUploading(false);
+  };
+
+  const engineConfirm = async () => {
+    const mat = parseInt(engineConfirmMat.trim(), 10);
+    if (isNaN(mat)) return;
+    setEngineConfirming(true); setEngineConfirmRes(null);
+    try {
+      const res = await fetch("/api/fiche-engine/confirm", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ matricule: mat }) });
+      setEngineConfirmRes(await res.json());
+    } catch { toast({ title: "Erreur confirmation", variant: "destructive" }); }
+    setEngineConfirming(false);
+  };
+
+  const engineBatchGenerate = async () => {
+    if (!engineBatchText.trim()) return;
+    setEngineGenerating(true); setEngineBatchRes(null);
+    try {
+      const res = await fetch("/api/fiche-engine/batch/text", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ text: engineBatchText }) });
+      const d = await res.json();
+      setEngineBatchRes(d.results ?? []);
+      toast({ title: `${d.extracted?.length ?? 0} matricule(s) détecté(s), ${d.results?.filter((r: Record<string,unknown>) => !r.error).length ?? 0} fiche(s) générée(s)` });
+    } catch { toast({ title: "Erreur génération lot", variant: "destructive" }); }
+    setEngineGenerating(false);
+  };
+
+  const runAudit = async (type: "duplicates"|"direction"|"fonction"|"crossed") => {
+    setAuditTab(type); setAuditData(null); setAuditLoading(true);
+    try {
+      const res = await fetch(`/api/fiche-engine/audit/${type}`);
+      if (res.ok) setAuditData(await res.json());
+      else toast({ title: "Erreur audit", variant: "destructive" });
+    } catch { toast({ title: "Fiche Engine non disponible", variant: "destructive" }); }
+    setAuditLoading(false);
+  };
   const [singleMat, setSingleMat]           = useState("");
   const [singleEmployee, setSingleEmployee] = useState<{ nom: string; prenom: string; direction?: string | null; service?: string | null; age?: number | null } | null>(null);
   const [singleLooking, setSingleLooking]   = useState(false);
@@ -451,6 +518,16 @@ export default function GenererFiches() {
         >
           <Database className="w-4 h-4" />
           Onglet 2 — Lot / Bulk
+        </button>
+        <button
+          onClick={() => { setActiveTab("engine"); setResults(null); setPdfPreviewUrl(null); checkEngineStatus(); }}
+          className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "engine" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span className="text-base leading-none">⚙️</span>
+          Data-Base.xlsx
+          {engineLoaded && <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />}
         </button>
       </div>
 
@@ -626,6 +703,187 @@ export default function GenererFiches() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ══ ONGLET 3 — Data-Base.xlsx (Fiche Engine backend) ════════════ */}
+      {activeTab === "engine" && (
+        <div className="space-y-4">
+          {/* ── Upload / Status ──────────────────────────────────────────── */}
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">A</span>
+              <span className="text-sm font-semibold text-foreground">Chargement Data-Base.xlsx</span>
+            </div>
+            <div className="p-5 space-y-3">
+              {engineLoaded && engineInfo ? (
+                <div className="flex items-start gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-emerald-800">Base chargée ✓</p>
+                    <p className="text-xs text-emerald-700 mt-0.5">
+                      {engineInfo.filename && <span className="font-mono">{engineInfo.filename} · </span>}
+                      {engineInfo.personnel_count} agents · {engineInfo.vms_rows} lignes VMS
+                    </p>
+                  </div>
+                  <button onClick={() => engineFileRef.current?.click()} className="text-xs text-emerald-700 underline shrink-0">Remplacer</button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/40 hover:bg-muted/10 transition-colors"
+                  onClick={() => engineFileRef.current?.click()}>
+                  <Upload className="w-7 h-7 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground text-center">Déposez <strong>Data-Base.xlsx</strong> ici — ou cliquez pour sélectionner</p>
+                  <p className="text-xs text-muted-foreground/70">La feuille <strong>Personnel</strong> et les feuilles VMS seront lues automatiquement</p>
+                </div>
+              )}
+              <input ref={engineFileRef} type="file" accept=".xlsx,.xls" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadToEngine(f); e.target.value = ""; }} />
+              {engineUploading && (
+                <div className="flex items-center gap-2 text-sm text-primary">
+                  <Loader2 className="w-4 h-4 animate-spin" />Chargement en cours…
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Confirmation rapide ──────────────────────────────────────── */}
+          {engineLoaded && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">B</span>
+                <span className="text-sm font-semibold text-foreground">Confirmation rapide</span>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Matricule (ex: 1234)"
+                    value={engineConfirmMat}
+                    onChange={(e) => { setEngineConfirmMat(e.target.value); setEngineConfirmRes(null); }}
+                    onKeyDown={(e) => e.key === "Enter" && engineConfirm()}
+                    className="flex-1 px-3 py-2.5 border border-border rounded-lg bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                  <Button variant="outline" onClick={engineConfirm} disabled={!engineConfirmMat.trim() || engineConfirming} className="gap-2 shrink-0">
+                    {engineConfirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                    Confirmer
+                  </Button>
+                </div>
+                {engineConfirmRes && (
+                  engineConfirmRes["error"] ? (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                      <AlertCircle className="w-4 h-4 shrink-0" />{String(engineConfirmRes["error"])}
+                    </div>
+                  ) : (
+                    <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                      <p className="font-bold text-emerald-800 text-sm">{String(engineConfirmRes["nom"] ?? "")} {String(engineConfirmRes["prenom"] ?? "")}</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-emerald-700">
+                        {!!engineConfirmRes["direction"] && <span>📁 {String(engineConfirmRes["direction"])}</span>}
+                        {!!engineConfirmRes["service"] && <span>🏢 {String(engineConfirmRes["service"])}</span>}
+                        {!!engineConfirmRes["fonction"] && <span>💼 {String(engineConfirmRes["fonction"])}</span>}
+                        {!!engineConfirmRes["date_naissance"] && <span>🎂 {String(engineConfirmRes["date_naissance"])}</span>}
+                        {!!engineConfirmRes["sexe"] && <span>{String(engineConfirmRes["sexe"])}</span>}
+                      </div>
+                      {engineConfirmRes["visites_count"] !== undefined && (
+                        <p className="text-xs text-emerald-600">{String(engineConfirmRes["visites_count"])} visite(s) VMS trouvée(s)</p>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Génération par lot (texte libre) ────────────────────────── */}
+          {engineLoaded && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">C</span>
+                <span className="text-sm font-semibold text-foreground">Génération par lot — texte libre</span>
+                <span className="text-xs text-muted-foreground">Les matricules seront extraits automatiquement</span>
+              </div>
+              <div className="p-5 space-y-3">
+                <textarea
+                  className="w-full h-32 rounded-xl border border-border bg-muted/20 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                  placeholder={"Collez n'importe quel texte contenant des matricules :\n\nLe médecin demande les fiches de 1001, 1042 et 1108"}
+                  value={engineBatchText}
+                  onChange={(e) => { setEngineBatchText(e.target.value); setEngineBatchRes(null); }}
+                />
+                <Button onClick={engineBatchGenerate} disabled={!engineBatchText.trim() || engineGenerating} className="gap-2">
+                  {engineGenerating ? <><Loader2 className="w-4 h-4 animate-spin" />Génération…</> : <><FileText className="w-4 h-4" />Générer les fiches</>}
+                </Button>
+                {engineBatchRes && (
+                  <div className="divide-y divide-border border border-border rounded-xl overflow-hidden">
+                    {engineBatchRes.map((r, i) => (
+                      <div key={i} className={cn("flex items-center gap-3 px-4 py-2.5", r["error"] ? "bg-red-50/40" : "bg-emerald-50/30")}>
+                        {r["error"]
+                          ? <><AlertCircle className="w-4 h-4 text-red-400 shrink-0" /><span className="font-mono text-sm text-red-700">{String(r["matricule"] ?? "")}</span><span className="text-xs text-red-500 ml-1">{String(r["error"])}</span></>
+                          : <><CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" /><span className="font-mono text-sm font-bold text-foreground">{String(r["matricule"] ?? "")}</span><span className="text-sm text-foreground ml-1">{String(r["nom"] ?? "")} {String(r["prenom"] ?? "")}</span>
+                            {r["pdf_url"] && <a href={String(r["pdf_url"])} target="_blank" rel="noopener noreferrer" className="ml-auto text-xs text-primary underline shrink-0">PDF</a>}
+                          </>
+                        }
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Audits ──────────────────────────────────────────────────── */}
+          {engineLoaded && (
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">D</span>
+                <span className="text-sm font-semibold text-foreground">Audits de la base</span>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {(["duplicates","direction","fonction","crossed"] as const).map((t) => (
+                    <button key={t} onClick={() => runAudit(t)}
+                      className={cn("px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors",
+                        auditTab === t ? "bg-primary text-primary-foreground border-primary" : "border-border text-foreground hover:bg-muted/30"
+                      )}>
+                      {t === "duplicates" && "Doublons"}
+                      {t === "direction" && "Par Direction"}
+                      {t === "fonction" && "Par Fonction"}
+                      {t === "crossed" && "Croisé Personnel/VMS"}
+                    </button>
+                  ))}
+                </div>
+                {auditLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" />Chargement audit…</div>}
+                {auditData && !auditLoading && (
+                  <div className="mt-2 overflow-auto max-h-72 border border-border rounded-xl">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/40 border-b border-border">
+                          {Object.keys(auditData).slice(0,1).flatMap((k) =>
+                            Array.isArray(auditData[k]) && auditData[k].length > 0
+                              ? Object.keys(auditData[k][0] as object).map((col) => <th key={col} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{col}</th>)
+                              : [<th key="k" className="px-3 py-2 text-left font-semibold text-muted-foreground">{k}</th>]
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(auditData).flatMap(([k, v]) =>
+                          Array.isArray(v) ? v.map((row: unknown, i: number) => (
+                            <tr key={`${k}-${i}`} className="border-b border-border last:border-0 hover:bg-muted/20">
+                              {typeof row === "object" && row !== null
+                                ? Object.values(row as object).map((cell, j) => <td key={j} className="px-3 py-2 font-mono whitespace-nowrap">{String(cell ?? "")}</td>)
+                                : <td className="px-3 py-2 font-mono">{k}: {String(v)}</td>
+                              }
+                            </tr>
+                          )) : []
+                        )}
+                      </tbody>
+                    </table>
+                    {Object.values(auditData).every((v) => !Array.isArray(v) || (v as unknown[]).length === 0) && (
+                      <div className="px-4 py-6 text-center text-sm text-muted-foreground">Aucune anomalie détectée ✓</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
