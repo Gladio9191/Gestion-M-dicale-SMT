@@ -230,7 +230,7 @@ export default function Dashboard() {
                       strokeWidth={0} paddingAngle={4}
                     >
                       {aptitudeStats.map((_, i) => (
-                        <Cell key={i} fill={[TEAL, "#EF4444", AMBER][i % 3]} cornerRadius={6} />
+                        <Cell key={i} fill={[TEAL, "#EF4444", AMBER][i % 3]} />
                       ))}
                     </Pie>
                     <Tooltip
