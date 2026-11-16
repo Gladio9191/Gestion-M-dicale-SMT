@@ -5,11 +5,16 @@ on:
     branches:
       - integration/smt-replit-portability-20261116
       - feature/smt-multisheet-preview-20261116
+      - feature/smt-single-owner-auth-20261116
   pull_request:
     paths:
       - 'vercel.json'
       - 'scripts/verify-smt-preview.mjs'
       - 'scripts/test-smt-sheet-classification.mjs'
+      - 'scripts/test-smt-owner-auth.mjs'
+      - 'scripts/check-smt-auth-security.mjs'
+      - 'artifacts/api-server/**'
+      - 'lib/api-client-react/**'
       - 'artifacts/fiche-medicale/**'
       - '.github/workflows/smt-preview-contract.yml'
 
@@ -28,6 +33,10 @@ jobs:
         run: node scripts/verify-smt-preview.mjs
       - name: Exercise Replit sheet classification using synthetic sheet names
         run: node --experimental-strip-types scripts/test-smt-sheet-classification.mjs
+      - name: Exercise owner authentication logic (synthetic passwords only)
+        run: node --experimental-strip-types --test scripts/test-smt-owner-auth.mjs
+      - name: Verify API owner and CSRF guard wiring
+        run: node scripts/check-smt-auth-security.mjs
       - name: Validate Vercel JSON
         run: python3 -m json.tool vercel.json > /dev/null
 
