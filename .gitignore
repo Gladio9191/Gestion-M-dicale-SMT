@@ -47,3 +47,9 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Private deployment configuration: never commit credentials
+.env
+.env.*
+!.env.example
+.vercel/

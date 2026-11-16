@@ -7,6 +7,7 @@ export type ErrorType<T = unknown> = ApiError<T>;
 export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
+export type CsrfTokenGetter = () => string | null;
 
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
@@ -17,6 +18,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _csrfTokenGetter: CsrfTokenGetter | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +44,11 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/** Browser-session CSRF token provider; do not store tokens in localStorage. */
+export function setCsrfTokenGetter(getter: CsrfTokenGetter | null): void {
+  _csrfTokenGetter = getter;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -358,9 +365,14 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const csrf = _csrfTokenGetter?.();
+    if (csrf && !headers.has("x-smt-csrf")) headers.set("X-SMT-CSRF", csrf);
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const response = await fetch(input, { ...init, method, headers, credentials: init.credentials ?? "include" });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

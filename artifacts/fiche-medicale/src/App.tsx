@@ -4,11 +4,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Layout from "@/components/Layout";
+import OwnerGate from "@/components/OwnerGate";
 import Dashboard from "@/pages/Dashboard";
 import EmployeeList from "@/pages/EmployeeList";
 import NewEmployee from "@/pages/NewEmployee";
 import FicheTechnique from "@/pages/FicheTechnique";
 import ImportExcel from "@/pages/ImportExcel";
+import ImportExcelMultiSheets from "@/pages/ImportExcelMultiSheets";
 import GenererFiches from "@/pages/GenererFiches";
 import VisiteHygiene from "@/pages/VisiteHygiene";
 import HistoriqueHygiene from "@/pages/HistoriqueHygiene";
@@ -31,6 +33,7 @@ function Router() {
         <Route path="/employees" component={EmployeeList} />
         <Route path="/employees/new" component={NewEmployee} />
         <Route path="/import" component={ImportExcel} />
+        <Route path="/import/multi-feuilles" component={ImportExcelMultiSheets} />
         <Route path="/generer" component={GenererFiches} />
         <Route path="/registre" component={RegistreActivites} />
         <Route path="/hygiene/new" component={VisiteHygiene} />
@@ -48,12 +51,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+      <OwnerGate>
+        <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
         <Toaster />
-      </TooltipProvider>
+        </TooltipProvider>
+      </OwnerGate>
     </QueryClientProvider>
   );
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { generateHygieneWordBlob, VisiteHygieneData } from "@/components/VisiteHygieneWord";
+import { apiFetch } from "@/lib/api";
 
 type VisiteRow = {
   id: number;
@@ -27,7 +28,7 @@ export default function HistoriqueHygiene() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/hygiene");
+      const res = await apiFetch("/api/hygiene");
       if (res.ok) setRows(await res.json());
     } catch { /* ignore */ }
     setLoading(false);
@@ -39,7 +40,7 @@ export default function HistoriqueHygiene() {
     if (!confirm("Supprimer cette visite ?")) return;
     setDeleting(id);
     try {
-      await fetch(`/api/hygiene/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/hygiene/${id}`, { method: "DELETE" });
       setRows((prev) => prev.filter((r) => r.id !== id));
       toast({ title: "Visite supprimée" });
     } catch { toast({ title: "Erreur suppression", variant: "destructive" }); }

@@ -9,12 +9,11 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
+import { apiFetch } from "@/lib/api";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES & CONSTANTS
 ═══════════════════════════════════════════════════════════════════════════ */
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const api  = (path: string) => `${BASE}${path}`;
 
 type PointageRow = {
   id: number; date: string; heureEntree: string;
@@ -197,7 +196,7 @@ export default function PointageMensuel() {
   const qKey = ["pointage", currentYM];
   const { data: rows = [], isLoading } = useQuery<PointageRow[]>({
     queryKey: qKey,
-    queryFn: () => fetch(api(`/api/pointage?mois=${currentYM}`)).then(r => r.json()),
+    queryFn: () => apiFetch(`/api/pointage?mois=${currentYM}`).then(r => r.json()),
   });
 
   const rowMap  = useMemo(() => new Map(rows.map(r => [r.date, r])), [rows]);
@@ -207,27 +206,27 @@ export default function PointageMensuel() {
   /* ── Mutations ── */
   const createMut = useMutation({
     mutationFn: (body: object) =>
-      fetch(api("/api/pointage"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json()),
+      apiFetch("/api/pointage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json()),
     onSuccess: () => { invalidate(); setAddingDate(null); toast({title:"Pointage ajouté"}); },
     onError: () => toast({title:"Erreur",variant:"destructive"}),
   });
 
   const updateMut = useMutation({
     mutationFn: ({id,...body}:{id:number}&object) =>
-      fetch(api(`/api/pointage/${id}`),{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json()),
+      apiFetch(`/api/pointage/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json()),
     onSuccess: () => { invalidate(); setEditingId(null); toast({title:"Mis à jour"}); },
     onError: () => toast({title:"Erreur",variant:"destructive"}),
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id:number) => fetch(api(`/api/pointage/${id}`),{method:"DELETE"}),
+    mutationFn: (id:number) => apiFetch(`/api/pointage/${id}`,{method:"DELETE"}),
     onSuccess: () => { invalidate(); toast({title:"Supprimé"}); },
     onError: () => toast({title:"Erreur",variant:"destructive"}),
   });
 
   const generateMut = useMutation({
     mutationFn: () =>
-      fetch(api("/api/pointage/generate"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mois:currentYM})}).then(r=>r.json()),
+      apiFetch("/api/pointage/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mois:currentYM})}).then(r=>r.json()),
     onSuccess: (d) => { invalidate(); toast({title:`${d.created} jour(s) généré(s)`}); },
     onError: () => toast({title:"Erreur",variant:"destructive"}),
   });

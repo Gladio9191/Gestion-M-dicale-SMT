@@ -7,6 +7,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
+import { Link } from "wouter";
 
 const TARGET_FIELDS = [
   { key: "matricule",            label: "Matricule (Mle)",       required: true  },
@@ -121,7 +123,7 @@ export default function ImportExcel() {
     setImporting(true);
     setResult(null);
     try {
-      const res = await fetch("/api/employees/import", {
+      const res = await apiFetch("/api/employees/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employees, updateExisting, visitesOnly: isVisitesOnly }),
@@ -150,6 +152,7 @@ export default function ImportExcel() {
         <p className="text-muted-foreground text-sm mt-1">
           Importez des employés ou des visites médicales depuis un fichier .xlsx / .xls / .csv
         </p>
+        <Link href="/import/multi-feuilles" className="mt-3 inline-block text-sm text-primary hover:underline">Prévisualiser un classeur multi-feuilles (Personnel, VM, RM, Campagnes) →</Link>
       </div>
 
       {/* Drop zone */}
