@@ -21,7 +21,7 @@ const roots = [
 const read = path => readFileSync(new URL("../"+path,import.meta.url));
 const dashboardPath="artifacts/fiche-medicale/src/pages/Dashboard.tsx";
 const dashboardBytes=read(dashboardPath);
-const dashboardSha=createHash("sha1").update("blob "+dashboardBytes.length+"\\0").update(dashboardBytes).digest("hex");
+const dashboardSha=createHash("sha1").update("blob "+dashboardBytes.length+"\0").update(dashboardBytes).digest("hex");
 assert.equal(dashboardSha,"fec74e400bf936d046e1064ec07eec9ccfc52296",
   "Changed approved dashboard safety patch: "+dashboardPath);
 assert.match(dashboardBytes.toString(),/Array\.isArray\(aptitudeStats\)/);
