@@ -40,6 +40,9 @@ try {
    assert.ok(await page.getByText("Tableau de bord",{exact:true}).count()>0,"Missing premium sidebar "+route);
    await page.waitForTimeout(250);
  }
+ await page.goto(base+"/",{waitUntil:"domcontentloaded"});
+ assert.ok(await page.getByText("Aperçu visuel uniquement",{exact:false}).count()>0,
+   "The Vercel Preview build must visibly label synthetic UI-only mode");
  await page.goto(base+"/import/multi-feuilles",{waitUntil:"domcontentloaded"});
  assert.ok(await page.getByText("Import Excel — multi-feuilles",{exact:false}).count()>0);
  const appRequire=createRequire(new URL("../artifacts/fiche-medicale/package.json",import.meta.url));
