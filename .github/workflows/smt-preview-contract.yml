@@ -126,8 +126,8 @@ jobs:
         run: |
           npm install --global pnpm@10.20.0
           pnpm install --frozen-lockfile
-      - name: Build standalone Replit React interface
-        run: pnpm --filter @workspace/fiche-medicale run build
+      - name: Build isolated Vercel-style visual Preview without backend
+        run: VITE_SMT_VISUAL_PREVIEW=1 VITE_API_BASE_URL= pnpm --filter @workspace/fiche-medicale run build
       - name: Install pinned browser runner
         run: |
           npm install --prefix /tmp/smt-playwright playwright@1.55.1
