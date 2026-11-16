@@ -1,0 +1,28 @@
+name: SMT Premium UI Preview Contract
+
+on:
+  push:
+    branches:
+      - integration/smt-replit-portability-20261116
+  pull_request:
+    paths:
+      - 'vercel.json'
+      - 'scripts/verify-smt-preview.mjs'
+      - 'artifacts/fiche-medicale/**'
+      - '.github/workflows/smt-preview-contract.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-preview-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source (read-only)
+        uses: actions/checkout@11bd71901bbe5b163ceea73d27597364c9af683 # v4.2.2
+      - name: Validate JavaScript syntax
+        run: node --check scripts/verify-smt-preview.mjs
+      - name: Check premium UI and Vercel route contract
+        run: node scripts/verify-smt-preview.mjs
+      - name: Validate Vercel JSON
+        run: python3 -m json.tool vercel.json > /dev/null
