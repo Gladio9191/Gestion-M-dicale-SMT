@@ -110,7 +110,7 @@ jobs:
         run: pnpm --filter @workspace/scripts exec tsx src/test-smt-clinical-postgres.ts
 
   browser-synthetic-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout source
