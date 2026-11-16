@@ -7,6 +7,7 @@ import expertisesManualRouter from "./expertises-manual";
 import registreRouter from "./registre";
 import pointageRouter from "./pointage";
 import telegramSendsRouter from "./telegram-sends";
+import replitTelegramRouter from "./replit-telegram";
 
 // All routes under this router are mounted behind owner auth in app.ts.
 const router: IRouter = Router();
@@ -18,4 +19,5 @@ router.use(expertisesManualRouter);
 router.use(registreRouter);
 router.use(pointageRouter);
 router.use(telegramSendsRouter);
+router.use(replitTelegramRouter);
 export default router;
