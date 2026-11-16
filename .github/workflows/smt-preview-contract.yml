@@ -5,11 +5,16 @@ on:
     branches:
       - integration/smt-replit-portability-20261116
       - feature/smt-multisheet-preview-20261116
+      - feature/smt-single-owner-auth-20261116
   pull_request:
     paths:
       - 'vercel.json'
       - 'scripts/verify-smt-preview.mjs'
       - 'scripts/test-smt-sheet-classification.mjs'
+      - 'scripts/test-smt-owner-auth.mjs'
+      - 'scripts/check-smt-auth-security.mjs'
+      - 'artifacts/api-server/**'
+      - 'lib/api-client-react/**'
       - 'artifacts/fiche-medicale/**'
       - '.github/workflows/smt-preview-contract.yml'
 
@@ -21,13 +26,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source (read-only)
-        uses: actions/checkout@11bd71901bbe5b163ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Validate JavaScript syntax
         run: node --check scripts/verify-smt-preview.mjs
       - name: Check premium UI and Vercel route contract
         run: node scripts/verify-smt-preview.mjs
       - name: Exercise Replit sheet classification using synthetic sheet names
         run: node --experimental-strip-types scripts/test-smt-sheet-classification.mjs
+      - name: Exercise owner authentication logic (synthetic passwords only)
+        run: node --experimental-strip-types --test scripts/test-smt-owner-auth.mjs
+      - name: Verify API owner and CSRF guard wiring
+        run: node scripts/check-smt-auth-security.mjs
       - name: Validate Vercel JSON
         run: python3 -m json.tool vercel.json > /dev/null
 
@@ -37,7 +46,7 @@ jobs:
     # Source-only staging quality gate: never provide DB/API/production secrets.
     steps:
       - name: Checkout integration branch
-        uses: actions/checkout@11bd71901bbe5b163ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Configure Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:

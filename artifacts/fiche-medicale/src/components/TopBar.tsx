@@ -1,4 +1,4 @@
-import { Search, Bell, Settings, Calendar, LayoutGrid } from "lucide-react";
+import { Search, Bell, Settings, Calendar, LayoutGrid, LogOut } from "lucide-react";
 
 function IconBtn({ icon: Icon, badge }: { icon: React.ElementType; badge?: boolean }) {
   return (
@@ -31,6 +31,7 @@ export default function TopBar() {
         <IconBtn icon={LayoutGrid} />
         <IconBtn icon={Settings} />
         <IconBtn icon={Bell} badge />
+        <button type="button" title="Déconnexion" aria-label="Déconnexion" className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center hover:bg-slate-50" onClick={() => window.dispatchEvent(new Event("smt:logout"))}><LogOut className="w-[17px] h-[17px] text-slate-500" /></button>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import { getOwnerCsrfToken } from "./owner-session";
+
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "")
   .trim()
   .replace(/\/+$/, "");
@@ -25,5 +27,9 @@ export function apiUrl(path: string): string {
 }
 
 export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(apiUrl(path), init);
+  const method = (init?.method ?? "GET").toUpperCase();
+  const headers = new Headers(init?.headers);
+  const csrf = getOwnerCsrfToken();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method) && csrf) headers.set("X-SMT-CSRF", csrf);
+  return fetch(apiUrl(path), { ...init, headers, credentials: init?.credentials ?? "include" });
 }
