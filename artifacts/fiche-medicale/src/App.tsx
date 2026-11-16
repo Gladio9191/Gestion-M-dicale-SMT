@@ -9,6 +9,7 @@ import EmployeeList from "@/pages/EmployeeList";
 import NewEmployee from "@/pages/NewEmployee";
 import FicheTechnique from "@/pages/FicheTechnique";
 import ImportExcel from "@/pages/ImportExcel";
+import ImportExcelMultiSheets from "@/pages/ImportExcelMultiSheets";
 import GenererFiches from "@/pages/GenererFiches";
 import VisiteHygiene from "@/pages/VisiteHygiene";
 import HistoriqueHygiene from "@/pages/HistoriqueHygiene";
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/employees" component={EmployeeList} />
         <Route path="/employees/new" component={NewEmployee} />
         <Route path="/import" component={ImportExcel} />
+        <Route path="/import/multi-feuilles" component={ImportExcelMultiSheets} />
         <Route path="/generer" component={GenererFiches} />
         <Route path="/registre" component={RegistreActivites} />
         <Route path="/hygiene/new" component={VisiteHygiene} />
