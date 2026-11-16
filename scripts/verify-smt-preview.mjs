@@ -22,7 +22,7 @@ function check(label, fn) {
   catch (error) { process.stderr.write(`FAIL ${label}: ${error.message}\n`); process.exitCode = 1; }
 }
 const routes = [
-  '/employees', '/employees/new', '/employees/:matricule', '/import', '/generer',
+  '/employees', '/employees/new', '/employees/:matricule', '/import', '/import/multi-feuilles', '/generer',
   '/registre', '/hygiene/new', '/hygiene/historique', '/expertises',
   '/pointage', '/evaluation',
 ];
