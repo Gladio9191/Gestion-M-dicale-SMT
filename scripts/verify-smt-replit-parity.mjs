@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 const roots = [
+ ["artifacts/fiche-medicale/public/favicon.svg","4373d3cd2f3dad5ca6f33b5cdcccc61edaef8eb7"],
+ ["artifacts/fiche-medicale/public/opengraph.jpg","f1512ffde436f312ea597d1ca50236996851e30b"],
  ["artifacts/fiche-medicale/src/components/Layout.tsx","adc33b42e69576ec93b810cf53f06a471acc01ac"],
  ["artifacts/fiche-medicale/src/index.css","4083c4cc4121268c1262af5c6325296653aa30f1"],
  ["artifacts/fiche-medicale/src/pages/Dashboard.tsx","02fefbfd73275d4e4e7b3db4fe5320c3cde28691"],
@@ -36,4 +38,4 @@ assert.match(original,/sendViaTelegram/);
 assert.match(pdf,/FicheDocument/);
 assert.match(read("artifacts/api-server/src/routes/replit-import-sheets.ts").toString(),/router\.post\("\/employees\/import-sheets"/);
 assert.match(read("artifacts/api-server/src/routes/replit-telegram.ts").toString(),/router\.post\("\/employees\/:matricule\/send-telegram"/);
-console.log("PASS 8 exact original Replit blob hashes + 10 source integration invariants");
+console.log("PASS 10 exact original Replit component/asset blob hashes + source integration invariants");
