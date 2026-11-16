@@ -2,11 +2,13 @@
  * DATABASE_URL MUST point to disposable CI PostgreSQL. Never execute on real SMT records. */
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
-import { db, pool, employeesTable, visitesTable, restrictionsTable, expertisesManuellesTable } from "../../lib/db/src/index.ts";
-import { eq } from "drizzle-orm";
-import importRouter from "../../artifacts/api-server/src/routes/replit-import-sheets.ts";
+const dbUrl = new URL("../../lib/db/src/index.ts",import.meta.url);
+const { db, pool, employeesTable, visitesTable, restrictionsTable, expertisesManuellesTable } = await import(dbUrl.href) as Record<string, any>;
+const routerUrl = new URL("../../artifacts/api-server/src/routes/replit-import-sheets.ts",import.meta.url);
+const importRouter = (await import(routerUrl.href)).default;
 const require = createRequire(new URL("../../artifacts/api-server/package.json",import.meta.url));
 const express = require("express");
+const { eq } = require("drizzle-orm");
 const app = express();
 app.use(express.json({limit:"2mb"}));
 app.use("/api",importRouter);
