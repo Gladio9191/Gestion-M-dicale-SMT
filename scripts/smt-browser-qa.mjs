@@ -17,6 +17,8 @@ try {
      return route.fulfill({status:200,contentType:"application/json",body:"[]"});
    if(url.pathname==="/api/stats/overview")
      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({totalEmployees:0,totalVisites:0,visitesThisYear:0,inapteCount:0,restrictionsCount:0,servicesCount:0})});
+   if(url.pathname==="/api/pointage")
+     return route.fulfill({status:200,contentType:"application/json",body:"[]"});
    if(url.pathname==="/api/registre-activites")
      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({rows:[],total:0,directions:[]})});
    if(url.pathname==="/api/employees")
