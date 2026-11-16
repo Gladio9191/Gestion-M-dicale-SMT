@@ -34,3 +34,14 @@ The previous patch fusion deliberately preserved the diverged GitHub `GenererFic
 
 ## Release gate
 **Do not merge to `main` or use real patient/employee health information until all above critical gaps and security requirements are validated.**
+
+## Safe multi-sheet preview staging — 2026-11-16
+
+- Feature branch: `feature/smt-multisheet-preview-20261116`, based on the independent integration branch, NOT on production `main`.
+- New `ImportExcelMultiSheets.tsx` uses the premium SMT app's existing React/Wouter/Tailwind components. Accessible from the existing import page at `/import/multi-feuilles`, with a precise SPA rewrite and no catch-all `/api/*` rewrite.
+- `sheetClassification.ts` ports Replit's original sheet-name rules for `personnel`, `visites`, `restrictions`, `campagne`, and unknown. Node.js 22 strip-types test: **17/17 PASS**, and standalone TypeScript compile + TSX syntax parse succeeded locally.
+- The staging page accepts XLS/XLSX up to 15 MiB, examines sheet names, columns and non-empty row counts in browser memory, allows selecting/categorizing sheets, and deliberately has **no API call, no save, no server upload, no database change**.
+- GitHub branch static source safety checks: **10/10 PASS**. Source SHA checked byte-for-byte against locally syntax-checked files. The old Excel import remains available and unchanged other than a link.
+- **NOT full parity:** Replit's multi-sheet import backend route is not implemented; the preview does not write records. This is intentional pending access controls and backend QA.
+- **Build/Preview evidence:** GitHub/Vercel last status check returned `success` for project `gestion-m-dicale-smt-pceo` but `failure` for `gestion-m-dicale-smt` on the feature branch. No claim of working browser preview or full build is made. Available Vercel connector returned 404 for the failing deployment ID, so the exact failing step cannot be confirmed.
+- Required before release: retrieve the failing Vercel build logs from the owning account; fix any supported build issue; complete source-backed authenticated Express integration and synthetic-data functional/browser tests.
