@@ -18,6 +18,7 @@ on:
       - 'scripts/test-smt-import-validation.mjs'
       - 'scripts/src/test-smt-owner-http.ts'
       - 'scripts/src/test-smt-clinical-postgres.ts'
+      - 'scripts/src/test-smt-export-clinical.ts'
       - 'scripts/smt-browser-qa.mjs'
       - 'artifacts/api-server/**'
       - 'lib/api-client-react/**'
@@ -71,6 +72,8 @@ jobs:
         run: pnpm run typecheck
       - name: Build all workspace artifacts
         run: pnpm run build
+      - name: Render synthetic medical PDF and Word documents
+        run: pnpm --filter @workspace/scripts exec tsx src/test-smt-export-clinical.ts
 
   clinical-synthetic-postgres:
     runs-on: ubuntu-latest
