@@ -20,6 +20,8 @@ router.post("/employees/:matricule/send-telegram", async (req, res) => {
     db.select().from(antecedentsTable).where(eq(antecedentsTable.employeeId, employee.id)).orderBy(desc(antecedentsTable.createdAt)),
     db.select().from(visitesTable).where(eq(visitesTable.employeeId, employee.id)).orderBy(desc(visitesTable.dateVisite)).limit(5),
   ]);
+  const logMatricule = Number(employee.matricule);
+  if (!Number.isSafeInteger(logMatricule)) return res.status(400).json({ error: "Matricule non numérique pour historique Telegram" });
   const name = [employee.prenom, employee.nom].filter(Boolean).join(" ");
   const lines = [
     "<b>FICHE TECHNIQUE MÉDICALE</b>",
@@ -53,7 +55,7 @@ router.post("/employees/:matricule/send-telegram", async (req, res) => {
   }
   try {
     await db.insert(telegramSendsTable).values({
-      matricule: employee.matricule,
+      matricule: logMatricule,
       chatId,
       status,
       errorMessage,
