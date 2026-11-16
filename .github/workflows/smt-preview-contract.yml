@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - integration/smt-replit-portability-20261116
+      - feature/smt-multisheet-preview-20261116
   pull_request:
     paths:
       - 'vercel.json'
       - 'scripts/verify-smt-preview.mjs'
+      - 'scripts/test-smt-sheet-classification.mjs'
       - 'artifacts/fiche-medicale/**'
       - '.github/workflows/smt-preview-contract.yml'
 
@@ -24,6 +26,8 @@ jobs:
         run: node --check scripts/verify-smt-preview.mjs
       - name: Check premium UI and Vercel route contract
         run: node scripts/verify-smt-preview.mjs
+      - name: Exercise Replit sheet classification using synthetic sheet names
+        run: node --experimental-strip-types scripts/test-smt-sheet-classification.mjs
       - name: Validate Vercel JSON
         run: python3 -m json.tool vercel.json > /dev/null
 
