@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "PORT=18971 BASE_PATH=/ pnpm --filter @workspace/fiche-medicale run build",
+  "outputDirectory": "artifacts/fiche-medicale/dist/public",
+  "rewrites": [
+    { "source": "/employees", "destination": "/index.html" },
+    { "source": "/employees/new", "destination": "/index.html" },
+    { "source": "/employees/:matricule", "destination": "/index.html" },
+    { "source": "/import", "destination": "/index.html" },
+    { "source": "/generer", "destination": "/index.html" },
+    { "source": "/registre", "destination": "/index.html" },
+    { "source": "/hygiene/new", "destination": "/index.html" },
+    { "source": "/hygiene/historique", "destination": "/index.html" },
+    { "source": "/expertises", "destination": "/index.html" },
+    { "source": "/pointage", "destination": "/index.html" },
+    { "source": "/evaluation", "destination": "/index.html" }
+  ]
+}
