@@ -18,6 +18,7 @@ on:
       - 'scripts/test-smt-import-validation.mjs'
       - 'scripts/src/test-smt-owner-http.ts'
       - 'scripts/src/test-smt-clinical-postgres.ts'
+      - 'scripts/smt-browser-qa.mjs'
       - 'artifacts/api-server/**'
       - 'lib/api-client-react/**'
       - 'artifacts/fiche-medicale/**'
@@ -107,3 +108,32 @@ jobs:
         run: pnpm --filter @workspace/db exec drizzle-kit push --force --config ./drizzle.config.ts
       - name: Exercise synthetic clinical workflows against disposable PostgreSQL
         run: pnpm --filter @workspace/scripts exec tsx src/test-smt-clinical-postgres.ts
+
+  browser-synthetic-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Configure Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: |
+          npm install --global pnpm@10.20.0
+          pnpm install --frozen-lockfile
+      - name: Build standalone Replit React interface
+        run: pnpm --filter @workspace/fiche-medicale run build
+      - name: Install pinned browser runner
+        run: |
+          npm install --prefix /tmp/smt-playwright playwright@1.55.1
+          node /tmp/smt-playwright/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Test premium navigation and browser runtime with synthetic API responses
+        run: |
+          PORT=18701 NODE_ENV=production pnpm --filter @workspace/fiche-medicale exec vite preview --host 127.0.0.1 --port 18701 > /tmp/smt-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18701/ > /dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/smt-browser-qa.mjs
