@@ -6,6 +6,7 @@ on:
       - integration/smt-replit-portability-20261116
       - feature/smt-multisheet-preview-20261116
       - feature/smt-single-owner-auth-20261116
+      - feature/smt-import-validation-20261116
   pull_request:
     paths:
       - 'vercel.json'
@@ -13,6 +14,8 @@ on:
       - 'scripts/test-smt-sheet-classification.mjs'
       - 'scripts/test-smt-owner-auth.mjs'
       - 'scripts/check-smt-auth-security.mjs'
+      - 'scripts/test-smt-import-validation.mjs'
+      - 'scripts/src/test-smt-owner-http.ts'
       - 'artifacts/api-server/**'
       - 'lib/api-client-react/**'
       - 'artifacts/fiche-medicale/**'
@@ -37,6 +40,8 @@ jobs:
         run: node --experimental-strip-types --test scripts/test-smt-owner-auth.mjs
       - name: Verify API owner and CSRF guard wiring
         run: node scripts/check-smt-auth-security.mjs
+      - name: Test import dry-run dates, IDs and duplicates with synthetic rows
+        run: node --experimental-strip-types --test scripts/test-smt-import-validation.mjs
       - name: Validate Vercel JSON
         run: python3 -m json.tool vercel.json > /dev/null
 
@@ -55,6 +60,8 @@ jobs:
         run: npm install --global pnpm@10.20.0
       - name: Install workspace dependencies from committed lockfile
         run: pnpm install --frozen-lockfile
+      - name: Run owner HTTP integration test against isolated Express router
+        run: pnpm --filter @workspace/scripts exec tsx src/test-smt-owner-http.ts
       - name: Complete TypeScript workspace typecheck
         run: pnpm run typecheck
       - name: Build all workspace artifacts

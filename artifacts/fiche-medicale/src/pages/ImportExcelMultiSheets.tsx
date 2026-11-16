@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { detectSheetType, SHEET_TYPE_LABELS, type SheetType } from "@/lib/sheetClassification";
+import { validateSheetRows, type SheetValidation } from "@/lib/importValidation";
 
 type SheetPreview = {
   name: string;
@@ -13,11 +14,29 @@ type SheetPreview = {
   rowCount: number;
   columns: string[];
   included: boolean;
+  validations: Record<SheetType, SheetValidation>;
 };
 
 const TYPES: SheetType[] = ["visites", "personnel", "restrictions", "campagne", "inconnu"];
 const MAX_BYTES = 15 * 1024 * 1024;
 const MAX_SHEETS = 100;
+
+/** Only aggregate counts are shown. Never reveal clinical record contents. */
+function validationNotice(sheet: SheetPreview): string {
+  if (sheet.type === "inconnu") return "Affectez un type pour effectuer les contrôles.";
+  const result = sheet.validations[sheet.type];
+  const notes: string[] = [];
+  if (result.missingMatricule) notes.push(result.missingMatricule + " matricule(s) absent(s)");
+  if (sheet.type === "visites") {
+    if (result.missingVisitDate) notes.push(result.missingVisitDate + " date(s) manquante(s)");
+    if (result.invalidVisitDate) notes.push(result.invalidVisitDate + " date(s) non interprétable(s)");
+    if (result.duplicateVisits) notes.push(result.duplicateVisits + " visite(s) en doublon potentiel");
+  }
+  if (sheet.type === "personnel" && result.duplicateMatricules) {
+    notes.push(result.duplicateMatricules + " matricule(s) répété(s)");
+  }
+  return notes.join(" · ") || "Aucune anomalie détectée par les contrôles de base";
+}
 
 /**
  * Staging preview of the original Replit multi-sheet import workflow.
@@ -51,7 +70,12 @@ export default function ImportExcelMultiSheets() {
         const columns = (head ?? []).map((value) => String(value ?? "").trim()).filter(Boolean);
         const rowCount = body.filter((row) => Array.isArray(row) && row.some((v) => v !== "" && v !== null && v !== undefined)).length;
         const type = detectSheetType(name);
-        return { name, type, rowCount, columns, included: type !== "inconnu" && rowCount > 0 };
+        // Scan workbook in memory, discard row values immediately after the preview.
+        const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: false });
+        const validations = Object.fromEntries(
+          TYPES.map((kind) => [kind, validateSheetRows(kind, records)])
+        ) as Record<SheetType, SheetValidation>;
+        return { name, type, rowCount, columns, included: type !== "inconnu" && rowCount > 0, validations };
       });
       setFileName(file.name);
       setSheets(previews);
@@ -116,6 +140,7 @@ export default function ImportExcelMultiSheets() {
                   <span className="text-sm tabular-nums">{sheet.rowCount} ligne(s)</span>
                 </div>
                 <p className="mt-2 ml-6 text-xs text-muted-foreground truncate">Colonnes : {sheet.columns.join(" · ") || "Aucune"}</p>
+                <p className="mt-1 ml-6 text-xs text-amber-700">Contrôles préalables : {validationNotice(sheet)}</p>
               </div>
             ))}
           </div>
