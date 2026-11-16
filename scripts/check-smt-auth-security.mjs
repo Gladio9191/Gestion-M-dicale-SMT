@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+const root = new URL('../', import.meta.url);
+const file = (p) => readFileSync(new URL(p, root), 'utf8');
+const app = file('artifacts/api-server/src/app.ts');
+const auth = file('artifacts/api-server/src/security/owner-auth.ts');
+const ui = file('artifacts/fiche-medicale/src/components/OwnerGate.tsx');
+const client = file('lib/api-client-react/src/custom-fetch.ts');
+const direct = file('artifacts/fiche-medicale/src/lib/api.ts');
+let passed=0;
+function check(name, ok){assert.ok(ok,name);passed++;}
+check('Owner auth guard is before Flask proxy', app.indexOf('requireOwner,\n  requireOwnerCsrf,\n  createProxyMiddleware') >= 0);
+check('Owner auth guard is before Express medical router',app.includes('app.use("/api", requireOwner, requireOwnerCsrf, router)'));
+check('No wildcard CORS', !app.includes('app.use(cors())') && app.includes('corsOriginAllowed'));
+check('Health route stays public',app.indexOf('app.use("/api", healthRouter)') < app.indexOf('app.use("/api", requireOwner'));
+check('Authentication endpoints separated',app.includes('app.use("/api/auth", ownerAuthRouter)'));
+check('Password from runtime env',auth.includes('process.env.SMT_OWNER_PASSWORD_HASH'));
+check('Cookie secure, HttpOnly, SameSite',auth.includes('httpOnly: true') && auth.includes('sameSite') && auth.includes('secure'));
+check('All writes guarded by CSRF',auth.includes('requireOwnerCsrf') && auth.includes('safeCsrfMatch'));
+check('Login rate limiting enabled',auth.includes('limiter.canAttempt(ip)'));
+check('Browser session credentials included',client.includes('credentials: init.credentials ?? "include"') && direct.includes('credentials: init?.credentials ?? "include"'));
+check('Owner login UI maintains premium app behind gate',ui.includes('Accès personnel sécurisé') && ui.includes('if (state === "ready") return <>{children}</>'));
+check('No credentials in bundle sources',![app,auth,ui,client,direct].some(s=>/SMT_OWNER_PASSWORD_HASH\s*=\s*["'][^"']+["']/.test(s)));
+console.log(`PASS ${passed}/${passed} SMT owner authentication source security checks`);
