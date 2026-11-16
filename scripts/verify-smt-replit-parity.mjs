@@ -17,6 +17,65 @@ const roots = [
  ["artifacts/fiche-medicale/src/pages/EvaluationObjectifs.tsx","e58fcf0daa575faf82cce0205ead9a698d0f2b83"]
 ];
 const read = path => readFileSync(new URL("../"+path,import.meta.url));
+/* Additional original ZIP source hashes: audited directly against user ZIP
+ * 2026-11-16. Only paths proven byte-identical on the integration branch
+ * are pinned here. Divergent files require functional tests, not false hashes. */
+const additionalVerifiedOriginalFiles = [
+  [
+    "artifacts/api-server/src/routes/expertises-manual.ts",
+    "72e3876bb75ceed8c18fc10ad0b7b65e42cf095e"
+  ],
+  [
+    "artifacts/api-server/src/routes/health.ts",
+    "c0a144626055cbc728d5d813d63b389ae1e82bee"
+  ],
+  [
+    "artifacts/api-server/src/routes/hygiene.ts",
+    "c85f5226e69c1e6c27f8dd979c4852c9d2ecca6b"
+  ],
+  [
+    "artifacts/api-server/src/routes/medical.ts",
+    "2c9854b9cfdc37ffd00cf9eb99ffbae65c1fe2b9"
+  ],
+  [
+    "artifacts/api-server/src/routes/pointage.ts",
+    "43757c3a7a1e9151b21a1ce57f17ee893b09e1af"
+  ],
+  [
+    "artifacts/api-server/src/routes/registre.ts",
+    "49caf2b09b38e85876ef5b9807ec123edb850c67"
+  ],
+  [
+    "artifacts/api-server/src/routes/stats.ts",
+    "dfccf68c7fdd850555ed1af24c46de11ff04e2ac"
+  ],
+  [
+    "artifacts/fiche-medicale/src/pages/NewEmployee.tsx",
+    "560780a4154532c0bd465d81c02f4628ad34999d"
+  ],
+  [
+    "artifacts/fiche-medicale/src/pages/VisiteHygiene.tsx",
+    "95301afaa03b679d6068ec6c415b0a113f19f865"
+  ],
+  [
+    "artifacts/fiche-medicale/src/pages/not-found.tsx",
+    "dba9f8316f8e796e2808090c4f6cf770e6b90c4a"
+  ],
+  [
+    "artifacts/mockup-sandbox/src/App.tsx",
+    "d9c2317f0d952aefe737473c57dc4afe359048a0"
+  ],
+  [
+    "artifacts/mockup-sandbox/src/index.css",
+    "53b9b028ddbeeaf35a42470b4bff8387e1d08a6b"
+  ]
+];
+for (const [path, expected] of additionalVerifiedOriginalFiles) {
+  const bytes = readFileSync(new URL("../" + path, import.meta.url));
+  const actual = createHash("sha1").update("blob " + bytes.length + "\0").update(bytes).digest("hex");
+  assert.equal(actual, expected, "Original Replit source regression: " + path);
+}
+
 for(const [path, expected] of roots) {
  const bytes=read(path);
  const sha=createHash("sha1").update("blob "+bytes.length+"\0").update(bytes).digest("hex");
@@ -38,4 +97,4 @@ assert.match(original,/sendViaTelegram/);
 assert.match(pdf,/FicheDocument/);
 assert.match(read("artifacts/api-server/src/routes/replit-import-sheets.ts").toString(),/router\.post\("\/employees\/import-sheets"/);
 assert.match(read("artifacts/api-server/src/routes/replit-telegram.ts").toString(),/router\.post\("\/employees\/:matricule\/send-telegram"/);
-console.log("PASS 10 exact original Replit component/asset blob hashes + source integration invariants");
+console.log("PASS " + (roots.length + additionalVerifiedOriginalFiles.length) + " exact original Replit blob hashes + source integration invariants");
