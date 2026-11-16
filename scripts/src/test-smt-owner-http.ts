@@ -1,8 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createRequire } from "node:module";
-import { createPasswordHash } from "../../artifacts/api-server/src/security/owner-core";
-import { ownerAuthRouter, requireOwner, requireOwnerCsrf } from "../../artifacts/api-server/src/security/owner-auth";
+// Resolve external workspace source at runtime: scripts/tsconfig restricts rootDir to scripts/src.
+// The actual security module is separately checked by api-server TypeScript typecheck.
+const coreUrl = new URL("../../artifacts/api-server/src/security/owner-core.ts", import.meta.url);
+const authUrl = new URL("../../artifacts/api-server/src/security/owner-auth.ts", import.meta.url);
+const core = await import(coreUrl.href) as { createPasswordHash: (password: string) => string };
+const security = await import(authUrl.href) as {
+  ownerAuthRouter: unknown;
+  requireOwner: unknown;
+  requireOwnerCsrf: unknown;
+};
+const createPasswordHash = core.createPasswordHash;
+const { ownerAuthRouter, requireOwner, requireOwnerCsrf } = security;
 
 // Resolve Express from its own workspace package; no production DB is imported.
 const apiRequire = createRequire(new URL("../../artifacts/api-server/package.json", import.meta.url));
