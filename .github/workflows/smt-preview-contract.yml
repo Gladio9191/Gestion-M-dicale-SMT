@@ -11,6 +11,7 @@ on:
     paths:
       - 'vercel.json'
       - 'scripts/verify-smt-preview.mjs'
+      - 'scripts/verify-smt-replit-parity.mjs'
       - 'scripts/test-smt-sheet-classification.mjs'
       - 'scripts/test-smt-owner-auth.mjs'
       - 'scripts/check-smt-auth-security.mjs'
@@ -34,6 +35,8 @@ jobs:
         run: node --check scripts/verify-smt-preview.mjs
       - name: Check premium UI and Vercel route contract
         run: node scripts/verify-smt-preview.mjs
+      - name: Verify exact Replit visual and Word source file hashes
+        run: node scripts/verify-smt-replit-parity.mjs
       - name: Exercise Replit sheet classification using synthetic sheet names
         run: node --experimental-strip-types scripts/test-smt-sheet-classification.mjs
       - name: Exercise owner authentication logic (synthetic passwords only)
