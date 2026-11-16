@@ -17,6 +17,7 @@ on:
       - 'scripts/check-smt-auth-security.mjs'
       - 'scripts/test-smt-import-validation.mjs'
       - 'scripts/src/test-smt-owner-http.ts'
+      - 'scripts/src/test-smt-clinical-postgres.ts'
       - 'artifacts/api-server/**'
       - 'lib/api-client-react/**'
       - 'artifacts/fiche-medicale/**'
@@ -69,3 +70,40 @@ jobs:
         run: pnpm run typecheck
       - name: Build all workspace artifacts
         run: pnpm run build
+
+  clinical-synthetic-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Database is a temporary CI service and uses ONLY synthetic records.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: smt_test
+          POSTGRES_PASSWORD: synthetic_only_test_password
+          POSTGRES_DB: smt_clinical_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smt_test -d smt_clinical_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://smt_test:synthetic_only_test_password@127.0.0.1:5432/smt_clinical_test
+      NODE_ENV: test
+    steps:
+      - name: Checkout isolated feature branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Configure Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install pnpm
+        run: npm install --global pnpm@10.20.0
+      - name: Restore locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Create disposable PostgreSQL schema
+        run: pnpm --filter @workspace/db exec drizzle-kit push --force --config ./drizzle.config.ts
+      - name: Exercise synthetic clinical workflows against disposable PostgreSQL
+        run: pnpm --filter @workspace/scripts exec tsx src/test-smt-clinical-postgres.ts
