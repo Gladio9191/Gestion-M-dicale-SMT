@@ -65,8 +65,14 @@ router.post("/employees/import-sheets", async (req, res) => {
     for (const sheet of input) {
       const count: Count = { name: sheet.name, type: sheet.type, created: 0, updated: 0, skipped: 0, errors: 0, total: sheet.rows.length };
       const indexed = sheet.rows.map(row => ({ row, mat: value(row, matKeys)?.trim() ?? "" }));
-      const valid = indexed.filter(x => x.mat);
-      count.skipped += indexed.length - valid.length;
+      const identified = indexed.filter(x => x.mat);
+      count.skipped += indexed.length - identified.length;
+      // Validate medical visit dates BEFORE ensuring employee rows exist.
+      // Otherwise a malformed VM creates an orphan/ghost employee.
+      const valid = sheet.type === "visites"
+        ? identified.filter(x => canonicalDate(value(x.row, ["dates", "date vm", "date visite", "date_visite", "d v", "date"])))
+        : identified;
+      count.errors += identified.length - valid.length;
       const unique = [...new Set(valid.map(x => x.mat))];
       const existing = new Map<string, number>();
       for (let i = 0; i < unique.length; i += 500) {
@@ -101,7 +107,9 @@ router.post("/employees/import-sheets", async (req, res) => {
             posteActuel: posteActuel ?? null, dateNaissance: birthDate,
           }).returning({ id: employeesTable.id });
           existing.set(mat, created.id);
-          count.created++;
+          // For visits/restrictions/campaigns, count imported clinical rows,
+          // not the supporting employee record and the clinical row twice.
+          if (sheet.type === "personnel") count.created++;
         }
       }
 
