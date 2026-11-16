@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useDebounce } from "@/hooks/use-debounce";
+import { apiFetch } from "@/lib/api";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -221,7 +222,7 @@ export default function RegistreActivites() {
       const params = new URLSearchParams({ page: String(pg), limit: String(LIMIT) });
       if (s) params.set("search", s);
       if (dir) params.set("direction", dir);
-      const res = await fetch(`/api/registre-activites?${params}`);
+      const res = await apiFetch(`/api/registre-activites?${params}`);
       if (res.ok) setData(await res.json());
     } catch { /* ignore */ }
     setLoading(false);
