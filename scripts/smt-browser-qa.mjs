@@ -42,6 +42,22 @@ try {
  }
  await page.goto(base+"/import/multi-feuilles",{waitUntil:"domcontentloaded"});
  assert.ok(await page.getByText("Import Excel — multi-feuilles",{exact:false}).count()>0);
+ const appRequire=createRequire(new URL("../artifacts/fiche-medicale/package.json",import.meta.url));
+ const XLSX=appRequire("xlsx");
+ const workbook=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(workbook,XLSX.utils.json_to_sheet([
+   {Matricule:"DEMO-0001",Dates:"01/10/2025","Type visite":"VM PERIODIQUE"},
+   {Matricule:"DEMO-0001",Dates:"31/02/2026"}
+ ]),"VMS 2026");
+ const workbookBytes=XLSX.write(workbook,{type:"buffer",bookType:"xlsx"});
+ await page.locator('input[type="file"]').setInputFiles({
+   name:"synthetic-clinical.xlsx",
+   mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+   buffer:workbookBytes
+ });
+ await page.getByText("Feuilles détectées",{exact:true}).waitFor({timeout:12000});
+ assert.ok(await page.getByText("date(s) non interprétable(s)",{exact:false}).count()>0,
+   "Browser Excel preview must identify invalid dates");
  await page.screenshot({path:"/tmp/smt-browser-preview.png",fullPage:true});
  assert.deepEqual(errors,[],"Unhandled React browser runtime errors");
  console.log("PASS synthetic browser navigation "+routes.length+" routes, original premium sidebar, import screen, no JS page errors");
