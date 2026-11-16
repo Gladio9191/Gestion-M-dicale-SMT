@@ -10,7 +10,7 @@ This staging change preserves the **original Replit premium React UI** by tellin
 - The frontend remains React + Vite + Wouter; `Layout.tsx`, `Dashboard.tsx`, CSS, and medical forms are unchanged.
 - `vercel.json` builds the premium app to `artifacts/fiche-medicale/dist/public`.
 - No `/api/*` rewrite to `index.html` is installed: APIs are still provided by the Express backend outside the static host. An unconfigured API will fail/404. **Do not test with real medical data or public users.**
-- Before a functional preview, the frontend/API contract and a separately hosted **secured** Express + PostgreSQL + Flask deployment must be configured. The Replit branch `agent/safe-portability` reportedly contains `VITE_API_BASE_URL` support; it is **not merged here** until its exact source is available and verified.
+- Before a functional preview, the frontend/API contract and a separately hosted **secured** Express + PostgreSQL + Flask deployment must be configured. The uploaded `SMT-Replit-Portability.patch` was inspected and integrated on this branch on 2026-11-16. The `VITE_API_BASE_URL` helper, generated client initialization, and Replit Vite build fixes are present. Two source files (`GenererFiches.tsx`, `ImportExcel.tsx`) required semantic merging because their GitHub baseline had diverged; existing GitHub workflows were preserved, but full Replit-vs-GitHub feature parity for those screens is NOT yet independently verified.
 - Never point a browser preview at a backend without authentication/authorization. Rotate the Telegram token reported as exposed in Replit Agent logs before using Telegram.
 
 ## Steps for Vercel Preview (not production)
@@ -25,7 +25,7 @@ This staging change preserves the **original Replit premium React UI** by tellin
 ## Known baseline gaps
 
 - The old GitHub `main` (inspected via GitHub) did not have `vercel.json`, `.env.example` or the Replit branch's central API helper; the premium UI source files **did exist**.
-- The latest Replit branch reportedly fixed `mockup-sandbox` build defaults and passed root typecheck/build, but those changes are **not accessible** on the GitHub branch as of this report.
+- The Replit patch includes the `mockup-sandbox` build defaults; the corresponding source blob was independently verified in GitHub. Replit Agent previously reported successful root typecheck/build, but the merged GitHub branch has not completed an independently verified full build.
 - Offline fonts, local PostgreSQL, Python engine, SMTP, and Telegram are postponed to the final Windows/Docker phase.
 - Replit Agent reported viewing sensitive API output and a Telegram secret in logs. Inspect exposure and rotate secrets through the service provider; do not copy tokens into Git.
 
@@ -37,3 +37,12 @@ python -m json.tool vercel.json
 ```
 
 These are **static configuration checks**, not a successful Vercel deployment or a medical workflow test.
+
+## Patch intake audit — 2026-11-16
+
+- Uploaded patch: 12 changed paths, of which 11 were integrated; the `vercel.json` wildcard SPA rewrite was intentionally rejected because it could intercept `/api` requests.
+- Nine file blobs match Replit's exact target Git SHA prefixes; `GenererFiches.tsx` and `ImportExcel.tsx` are semantically reconciled rather than wholesale replaced.
+- All changes are on the `integration/smt-replit-portability-20261116` branch only. No production deployment, database migration, or Replit source mutation was requested or executed.
+- A local static audit of the original Replit patched source passed 12/12 checks; **this is not a runtime/browser/full build pass**.
+- Vercel GitHub status checks may report success for the integration branch, but the actual live premium UI and backend data flow have not been visually or functionally verified.
+- **Remaining work**: inspect feature-level differences in the two divergent fiche/Excel components, provision an appropriately secured API backend in staging, and run complete automated/build/browser tests before any medical use.
