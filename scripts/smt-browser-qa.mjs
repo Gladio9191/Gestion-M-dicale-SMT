@@ -17,9 +17,11 @@ try {
      return route.fulfill({status:200,contentType:"application/json",body:"[]"});
    if(url.pathname==="/api/stats/overview")
      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({totalEmployees:0,totalVisites:0,visitesThisYear:0,inapteCount:0,restrictionsCount:0,servicesCount:0})});
+   if(url.pathname==="/api/registre-activites")
+     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({rows:[],total:0,directions:[]})});
    if(url.pathname==="/api/employees")
      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({employees:[],total:0,page:1,limit:20})});
-   return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({employees:[],visites:[],items:[],data:[],total:0,statistics:[],stats:[]})});
+   return route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Synthetic browser test: service intentionally unavailable"})});
  });
  const routes=["/","/employees","/registre","/generer","/import","/expertises","/hygiene/new","/hygiene/historique","/evaluation","/pointage","/import/multi-feuilles"];
  for(const route of routes) {
