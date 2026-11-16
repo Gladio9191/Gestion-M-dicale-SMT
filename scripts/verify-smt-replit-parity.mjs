@@ -9,7 +9,9 @@ const roots = [
  ["artifacts/fiche-medicale/public/opengraph.jpg","f1512ffde436f312ea597d1ca50236996851e30b"],
  ["artifacts/fiche-medicale/src/components/Layout.tsx","adc33b42e69576ec93b810cf53f06a471acc01ac"],
  ["artifacts/fiche-medicale/src/index.css","4083c4cc4121268c1262af5c6325296653aa30f1"],
- ["artifacts/fiche-medicale/src/pages/Dashboard.tsx","02fefbfd73275d4e4e7b3db4fe5320c3cde28691"],
+ // Dashboard was intentionally adapted to tolerate unavailable/non-array API responses.
+ // Original Replit blob: 02fefbfd73275d4e4e7b3db4fe5320c3cde28691
+ // Modified preview-safe dashboard is tracked separately below.
  ["artifacts/fiche-medicale/src/pages/EmployeeList.tsx","9ba55f71f8bb1796e5b018120bd4215035639f4e"],
  ["artifacts/fiche-medicale/src/pages/FicheTechnique.tsx","214e173e5946c52497237f9d7867c55cba3ecc7d"],
  ["artifacts/fiche-medicale/src/components/FicheWord.ts","01a03fa1bcd43172564d72446061e4a35d1bde42"],
@@ -17,6 +19,12 @@ const roots = [
  ["artifacts/fiche-medicale/src/pages/EvaluationObjectifs.tsx","e58fcf0daa575faf82cce0205ead9a698d0f2b83"]
 ];
 const read = path => readFileSync(new URL("../"+path,import.meta.url));
+const dashboardPath="artifacts/fiche-medicale/src/pages/Dashboard.tsx";
+const dashboardBytes=read(dashboardPath);
+const dashboardSha=createHash("sha1").update("blob "+dashboardBytes.length+"\\0").update(dashboardBytes).digest("hex");
+assert.equal(dashboardSha,"fec74e400bf936d046e1064ec07eec9ccfc52296",
+  "Changed approved dashboard safety patch: "+dashboardPath);
+assert.match(dashboardBytes.toString(),/Array\.isArray\(aptitudeStats\)/);
 /* Additional original ZIP source hashes: audited directly against user ZIP
  * 2026-11-16. Only paths proven byte-identical on the integration branch
  * are pinned here. Divergent files require functional tests, not false hashes. */
