@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES & CONSTANTS
@@ -103,7 +104,7 @@ export default function SaisieExpertises() {
   const loadRecent = async () => {
     setLoadingRecent(true);
     try {
-      const res = await fetch("/api/expertises-manual");
+      const res = await apiFetch("/api/expertises-manual");
       if (res.ok) setRecent(await res.json());
     } catch { /* ignore */ }
     setLoadingRecent(false);
@@ -118,7 +119,7 @@ export default function SaisieExpertises() {
     setNotFound(false);
     setLookupDone(false);
     try {
-      const res = await fetch(`/api/employees/${encodeURIComponent(mat)}`);
+      const res = await apiFetch(`/api/employees/${encodeURIComponent(mat)}`);
       if (res.ok) {
         const data = await res.json();
         setEmployee({ matricule: data.matricule, nom: data.nom, prenom: data.prenom, direction: data.direction, service: data.service });
@@ -141,7 +142,7 @@ export default function SaisieExpertises() {
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/expertises-manual", {
+      const res = await apiFetch("/api/expertises-manual", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matricule: matricule.trim(), categorie, typeExpertise: typeExpertise.trim(), resultat: resultat.trim() || null, dateExpertise }),
@@ -161,7 +162,7 @@ export default function SaisieExpertises() {
   const handleDelete = async (id: number) => {
     setDeletingId(id);
     try {
-      await fetch(`/api/expertises-manual/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/expertises-manual/${id}`, { method: "DELETE" });
       setRecent((prev) => prev.filter((r) => r.id !== id));
       toast({ title: "Entrée supprimée" });
     } catch { toast({ title: "Erreur suppression", variant: "destructive" }); }
