@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -222,7 +223,7 @@ function resolveMatricule(input: string, byMat: Map<string, FicheData>, nameLook
 ═══════════════════════════════════════════════════════════════════════════ */
 async function fetchFromDB(matricule: string): Promise<FicheData | null> {
   try {
-    const res = await fetch(`/api/employees/${encodeURIComponent(matricule)}/fiche`);
+    const res = await apiFetch(`/api/employees/${encodeURIComponent(matricule)}/fiche`);
     if (!res.ok) return null;
     return res.json() as Promise<FicheData>;
   } catch { return null; }
@@ -376,7 +377,7 @@ export default function GenererFiches() {
 
   const checkEngineStatus = async () => {
     try {
-      const res = await fetch("/api/fiche-engine/status");
+      const res = await apiFetch("/api/fiche-engine/status");
       if (res.ok) { const d = await res.json(); setEngineLoaded(d.loaded); if (d.loaded) setEngineInfo(d); }
     } catch { /* engine not running */ }
   };
@@ -385,7 +386,7 @@ export default function GenererFiches() {
     setEngineUploading(true);
     const fd = new FormData(); fd.append("file", file);
     try {
-      const res = await fetch("/api/fiche-engine/upload", { method: "POST", body: fd });
+      const res = await apiFetch("/api/fiche-engine/upload", { method: "POST", body: fd });
       const d = await res.json();
       if (res.ok) { setEngineLoaded(true); setEngineInfo(d); toast({ title: `Base chargée — ${d.personnel_count} agents, ${d.vms_rows} lignes VMS ✓` }); }
       else toast({ title: d.error ?? "Erreur upload", variant: "destructive" });
@@ -398,7 +399,7 @@ export default function GenererFiches() {
     if (isNaN(mat)) return;
     setEngineConfirming(true); setEngineConfirmRes(null);
     try {
-      const res = await fetch("/api/fiche-engine/confirm", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ matricule: mat }) });
+      const res = await apiFetch("/api/fiche-engine/confirm", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ matricule: mat }) });
       setEngineConfirmRes(await res.json());
     } catch { toast({ title: "Erreur confirmation", variant: "destructive" }); }
     setEngineConfirming(false);
@@ -408,7 +409,7 @@ export default function GenererFiches() {
     if (!engineBatchText.trim()) return;
     setEngineGenerating(true); setEngineBatchRes(null);
     try {
-      const res = await fetch("/api/fiche-engine/batch/text", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ text: engineBatchText }) });
+      const res = await apiFetch("/api/fiche-engine/batch/text", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ text: engineBatchText }) });
       const d = await res.json();
       setEngineBatchRes(d.results ?? []);
       toast({ title: `${d.extracted?.length ?? 0} matricule(s) détecté(s), ${d.results?.filter((r: Record<string,unknown>) => !r.error).length ?? 0} fiche(s) générée(s)` });
@@ -419,7 +420,7 @@ export default function GenererFiches() {
   const runAudit = async (type: "duplicates"|"direction"|"fonction"|"crossed") => {
     setAuditTab(type); setAuditData(null); setAuditLoading(true);
     try {
-      const res = await fetch(`/api/fiche-engine/audit/${type}`);
+      const res = await apiFetch(`/api/fiche-engine/audit/${type}`);
       if (res.ok) setAuditData(await res.json());
       else toast({ title: "Erreur audit", variant: "destructive" });
     } catch { toast({ title: "Fiche Engine non disponible", variant: "destructive" }); }
@@ -438,7 +439,7 @@ export default function GenererFiches() {
     if (isNaN(mat) || !chat) return;
     setTgSending(true); setTgResult(null);
     try {
-      const res = await fetch("/api/fiche-engine/send-telegram", {
+      const res = await apiFetch("/api/fiche-engine/send-telegram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ matricule: mat, chat_id: chat }),
@@ -462,7 +463,7 @@ export default function GenererFiches() {
     const mat = singleMat.trim(); if (!mat) return;
     setSingleLooking(true); resetSingle();
     try {
-      const res = await fetch(`/api/employees/${encodeURIComponent(mat)}`);
+      const res = await apiFetch(`/api/employees/${encodeURIComponent(mat)}`);
       if (res.ok) { const d = await res.json(); setSingleEmployee({ nom: d.nom, prenom: d.prenom, direction: d.direction, service: d.service, age: d.age }); }
       else setSingleNotFound(true);
     } catch { setSingleNotFound(true); }
