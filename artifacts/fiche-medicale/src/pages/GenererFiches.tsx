@@ -456,8 +456,42 @@ export default function GenererFiches() {
   const [singleLooking, setSingleLooking]   = useState(false);
   const [singleLookupDone, setSingleLookupDone] = useState(false);
   const [singleNotFound, setSingleNotFound] = useState(false);
+  const [singleTgChatId, setSingleTgChatId] = useState("");
+  const [singleTgConfirmed, setSingleTgConfirmed] = useState(false);
+  const [singleTgSending, setSingleTgSending] = useState(false);
+  const [singleTgResult, setSingleTgResult] = useState<string | null>(null);
+  const [tgHistory, setTgHistory] = useState<Array<{ id: number; createdAt: string; matricule: number; status: string }>>([]);
+  const [tgHistoryLoading, setTgHistoryLoading] = useState(false);
+  const loadTgHistory = async () => {
+    setTgHistoryLoading(true);
+    try {
+      const res = await apiFetch("/api/telegram-sends");
+      if (res.ok) setTgHistory(await res.json());
+    } catch { /* inaccessible history */ }
+    setTgHistoryLoading(false);
+  };
+  const sendSingleViaTelegram = async () => {
+    if (!singleLookupDone || !singleEmployee || !singleMat.trim() || !singleTgChatId.trim() || !singleTgConfirmed) return;
+    setSingleTgSending(true); setSingleTgResult(null);
+    try {
+      const res = await apiFetch("/api/employees/" + encodeURIComponent(singleMat.trim()) + "/send-telegram", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: singleTgChatId.trim() }),
+      });
+      const data = await res.json() as { message?: string; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Telegram indisponible");
+      setSingleTgResult(data.message ?? "Message envoyé");
+      setSingleTgConfirmed(false);
+      void loadTgHistory();
+      toast({ title: "Telegram envoyé" });
+    } catch (error) {
+      toast({ title: "Envoi Telegram échoué", description: error instanceof Error ? error.message : "Erreur réseau", variant: "destructive" });
+    } finally {
+      setSingleTgSending(false);
+    }
+  };
 
-  const resetSingle = () => { setSingleEmployee(null); setSingleNotFound(false); setSingleLookupDone(false); };
+  const resetSingle = () => { setSingleEmployee(null); setSingleNotFound(false); setSingleLookupDone(false); setSingleTgChatId(""); setSingleTgConfirmed(false); setSingleTgResult(null); };
 
   const lookupSingle = async () => {
     const mat = singleMat.trim(); if (!mat) return;
@@ -679,6 +713,30 @@ export default function GenererFiches() {
               <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
                 <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
                 <p className="text-sm text-amber-700">Matricule absent de la base de données — la fiche sera générée depuis les fichiers Excel si disponibles</p>
+              </div>
+            )}
+
+            {singleLookupDone && singleEmployee && (
+              <div className="border-t border-border pt-4 space-y-2">
+                <p className="font-semibold text-sm">Envoi individuel Telegram</p>
+                <input type="text" aria-label="Chat ID Telegram" placeholder="Chat ID Telegram"
+                  value={singleTgChatId} onChange={(e) => { setSingleTgChatId(e.target.value); setSingleTgConfirmed(false); }}
+                  className="w-full border rounded-lg p-2 text-sm bg-background" />
+                <label className="text-xs flex items-start gap-2">
+                  <input type="checkbox" checked={singleTgConfirmed} onChange={(e) => setSingleTgConfirmed(e.target.checked)} />
+                  Je confirme que le destinataire est autorisé à recevoir cette fiche médicale.
+                </label>
+                <Button variant="outline" onClick={() => void sendSingleViaTelegram()}
+                  disabled={!singleTgConfirmed || !singleTgChatId.trim() || singleTgSending}>
+                  {singleTgSending ? "Envoi…" : "Envoyer via Telegram"}
+                </Button>
+                {singleTgResult && <p role="status" className="text-xs text-emerald-700">{singleTgResult}</p>}
+                <div className="flex items-center gap-2 text-xs">
+                  <button type="button" className="underline" onClick={() => void loadTgHistory()} disabled={tgHistoryLoading}>
+                    {tgHistoryLoading ? "Chargement…" : "Actualiser l’historique Telegram"}
+                  </button>
+                  {tgHistory.length > 0 && <span>{tgHistory.length} envoi(s) enregistré(s)</span>}
+                </div>
               </div>
             )}
 
