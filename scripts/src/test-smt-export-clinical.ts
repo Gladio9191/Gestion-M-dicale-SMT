@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 const appRequire = createRequire(new URL("../../artifacts/fiche-medicale/package.json",import.meta.url));
 const React = appRequire("react");
+// tsx CLI uses the classic JSX transform; Vite uses its configured React JSX runtime.
+Object.assign(globalThis,{React});
 const { renderToBuffer } = appRequire("@react-pdf/renderer");
 const pdfModule = await import(new URL("../../artifacts/fiche-medicale/src/components/FichePDF.tsx",import.meta.url).href);
 const wordModule = await import(new URL("../../artifacts/fiche-medicale/src/components/FicheWord.ts",import.meta.url).href);
