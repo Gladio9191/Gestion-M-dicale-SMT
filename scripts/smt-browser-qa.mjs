@@ -13,6 +13,10 @@ try {
    const url=new URL(route.request().url());
    if(url.pathname==="/api/auth/session")
      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({authenticated:true,csrfToken:"a".repeat(64)})});
+   if(["/api/stats/services","/api/stats/recent-visites","/api/stats/aptitude","/api/services"].includes(url.pathname))
+     return route.fulfill({status:200,contentType:"application/json",body:"[]"});
+   if(url.pathname==="/api/stats/overview")
+     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({totalEmployees:0,totalVisites:0,visitesThisYear:0,inapteCount:0,restrictionsCount:0,servicesCount:0})});
    if(url.pathname==="/api/employees")
      return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({employees:[],total:0,page:1,limit:20})});
    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({employees:[],visites:[],items:[],data:[],total:0,statistics:[],stats:[]})});
