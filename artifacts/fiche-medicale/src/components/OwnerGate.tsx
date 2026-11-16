@@ -31,17 +31,21 @@ export default function OwnerGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const logout = async () => {
+      let confirmed = false;
       try {
-        await fetch(apiUrl("/api/auth/logout"), {
+        const response = await fetch(apiUrl("/api/auth/logout"), {
           method: "POST", credentials: "include", cache: "no-store",
           headers: { "X-SMT-CSRF": getOwnerCsrfToken() ?? "" },
         });
-      } finally {
-        queryClient.clear();
-        setOwnerCsrfToken(null);
-        setPassword("");
-        setState("locked");
+        confirmed = response.ok;
+      } catch {
+        // A network failure is not a confirmed server-side logout.
       }
+      queryClient.clear();
+      setOwnerCsrfToken(null);
+      setPassword("");
+      if (!confirmed) setError("Déconnexion non confirmée : fermez cet onglet et réessayez.");
+      setState(confirmed ? "locked" : "unreachable");
     };
     const handler = () => { void logout(); };
     window.addEventListener("smt:logout", handler);
@@ -97,7 +101,7 @@ export default function OwnerGate({ children }: { children: ReactNode }) {
           </div>
         ) : state === "unreachable" ? (
           <div role="alert" className="text-sm text-amber-800 bg-amber-50 border border-amber-200 p-4 rounded-xl">
-            Serveur privé indisponible. L'aperçu de l'interface ne donne pas accès aux données médicales.
+            {error || "Serveur privé indisponible. Aucune donnée médicale accessible."}
             <button type="button" className="block mt-3 underline" onClick={() => window.location.reload()}>Réessayer</button>
           </div>
         ) : (
