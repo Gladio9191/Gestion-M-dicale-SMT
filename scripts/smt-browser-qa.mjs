@@ -19,9 +19,15 @@ try {
  });
  const routes=["/","/employees","/registre","/generer","/import","/expertises","/hygiene/new","/hygiene/historique","/evaluation","/pointage","/import/multi-feuilles"];
  for(const route of routes) {
+   console.log("Checking browser path:",route);
    await page.goto(base+route,{waitUntil:"domcontentloaded"});
-   await page.locator("aside").waitFor({state:"visible",timeout:12000});
-   await page.locator("main").waitFor({state:"visible",timeout:12000});
+   try {
+     await page.locator("aside").waitFor({state:"visible",timeout:12000});
+     await page.locator("main").waitFor({state:"visible",timeout:12000});
+   } catch (error) {
+     console.error("Route failed:",route,"title:",await page.title(),"text:",(await page.locator("body").innerText()).slice(0,1000),"page errors:",errors);
+     throw error;
+   }
    assert.ok((await page.locator("main").innerText()).trim().length>0,"Empty route "+route);
    assert.ok(await page.getByText("Tableau de bord",{exact:true}).count()>0,"Missing premium sidebar "+route);
    await page.waitForTimeout(250);
