@@ -40,6 +40,12 @@ try {
    {Matricule:"DEMO-0002",Dates:"31/02/2026"}
  ]}]);
  assert.equal(visits.status,200,JSON.stringify(visits));
+ const missingDate=await send([{name:"VMS",type:"visites",rows:[
+   {Matricule:"DEMO-INVALID-009",Dates:"31/02/2026"}
+ ]}]);
+ assert.equal(missingDate.status,200);
+ const ghost=await db.select().from(employeesTable).where(eq(employeesTable.matricule,"DEMO-INVALID-009"));
+ assert.equal(ghost.length,0,"Invalid VM must never create a ghost employee");
  const saved=await db.select().from(visitesTable).where(eq(visitesTable.employeeId,emp[0].id));
  assert.equal(saved.length,1,"Duplicate date+matricule should not create two visits in one import");
  assert.equal(saved[0].dateVisite,"2025-10-01","French date should be normalized correctly");
