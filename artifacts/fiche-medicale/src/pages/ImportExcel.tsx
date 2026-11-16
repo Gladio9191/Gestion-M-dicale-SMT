@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 
 const TARGET_FIELDS = [
   { key: "matricule",            label: "Matricule (Mle)",       required: true  },
@@ -121,7 +122,7 @@ export default function ImportExcel() {
     setImporting(true);
     setResult(null);
     try {
-      const res = await fetch("/api/employees/import", {
+      const res = await apiFetch("/api/employees/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employees, updateExisting, visitesOnly: isVisitesOnly }),
