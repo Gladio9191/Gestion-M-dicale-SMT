@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { detectSheetType, SHEET_TYPE_LABELS, type SheetType } from "@/lib/sheetClassification";
 import { validateSheetRows, type SheetValidation } from "@/lib/importValidation";
+import { apiFetch } from "@/lib/api";
 
 type SheetPreview = {
   name: string;
@@ -49,6 +50,9 @@ export default function ImportExcelMultiSheets() {
   const [fileName, setFileName] = useState("");
   const [working, setWorking] = useState(false);
   const [sheets, setSheets] = useState<SheetPreview[]>([]);
+  const rowsRef = useRef<Record<string, string>[][]>([]);
+  const [confirmed, setConfirmed] = useState(false);
+  const [result, setResult] = useState<{ created: number; updated: number; skipped: number; errors: number } | null>(null);
 
   const parse = useCallback(async (file: File) => {
     if (!/\.(xlsx|xls)$/i.test(file.name) || file.size > MAX_BYTES) {
@@ -57,12 +61,16 @@ export default function ImportExcelMultiSheets() {
     }
     setWorking(true);
     setSheets([]);
+    rowsRef.current = [];
+    setConfirmed(false);
+    setResult(null);
     setFileName("");
     try {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
       if (!workbook.SheetNames.length || workbook.SheetNames.length > MAX_SHEETS) {
         throw new Error("Nombre de feuilles invalide (maximum 100)");
       }
+      const importedRows: Record<string, string>[][] = [];
       const previews = workbook.SheetNames.map((name) => {
         const ws = workbook.Sheets[name];
         const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", raw: true });
@@ -72,11 +80,13 @@ export default function ImportExcelMultiSheets() {
         const type = detectSheetType(name);
         // Scan workbook in memory, discard row values immediately after the preview.
         const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: false });
+        importedRows.push(records.map((record) => Object.fromEntries(Object.entries(record).map(([k, v]) => [k, String(v ?? "")]))));
         const validations = Object.fromEntries(
           TYPES.map((kind) => [kind, validateSheetRows(kind, records)])
         ) as Record<SheetType, SheetValidation>;
         return { name, type, rowCount, columns, included: type !== "inconnu" && rowCount > 0, validations };
       });
+      rowsRef.current = importedRows;
       setFileName(file.name);
       setSheets(previews);
     } catch {
@@ -89,10 +99,36 @@ export default function ImportExcelMultiSheets() {
   const reset = () => {
     setFileName("");
     setSheets([]);
+    rowsRef.current = [];
+    setConfirmed(false);
+    setResult(null);
     if (fileRef.current) fileRef.current.value = "";
   };
   const included = sheets.filter((sheet) => sheet.included && sheet.type !== "inconnu");
   const total = included.reduce((acc, sheet) => acc + sheet.rowCount, 0);
+
+  const importSelected = async () => {
+    if (!confirmed || !included.length) return;
+    const payload = { sheets: sheets.flatMap((sheet, index) => sheet.included && sheet.type !== "inconnu" ? [{ name: sheet.name, type: sheet.type, rows: rowsRef.current[index] ?? [] }] : []) };
+    const body = JSON.stringify(payload);
+    if (body.length > 1_500_000) {
+      toast({ title: "Classeur trop volumineux", description: "Importez moins de feuilles à la fois.", variant: "destructive" });
+      return;
+    }
+    setWorking(true);
+    try {
+      const response = await apiFetch("/api/employees/import-sheets", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+      const data = await response.json() as { created?: number; updated?: number; skipped?: number; errors?: number; error?: string };
+      if (!response.ok) throw new Error(data.error ?? "Import interrompu");
+      setResult({ created: data.created ?? 0, updated: data.updated ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? 0 });
+      setConfirmed(false);
+      toast({ title: "Importation terminée", description: "Vérifiez les données avant toute autre opération." });
+    } catch (error) {
+      toast({ title: "Échec de l’importation", description: error instanceof Error ? error.message : "Erreur du serveur", variant: "destructive" });
+    } finally {
+      setWorking(false);
+    }
+  };
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -104,8 +140,8 @@ export default function ImportExcelMultiSheets() {
       <div className="mb-5 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 shrink-0" />
         <div className="text-sm">
-          <strong>Aperçu uniquement : aucune donnée n'est envoyée ni enregistrée.</strong>
-          <p className="mt-1">L'importation multi-feuilles sera activée après validation de l'authentification et des tests du serveur.</p>
+          <strong>Analyse locale : aucun envoi avant votre confirmation explicite.</strong>
+          <p className="mt-1">L'importation écrit dans la base du serveur connecté. N'utilisez que des données de test avant validation complète.</p>
         </div>
       </div>
       <div
@@ -145,8 +181,22 @@ export default function ImportExcelMultiSheets() {
             ))}
           </div>
           <div className="px-5 py-3 border-t border-border bg-muted/20 flex gap-2 items-center text-sm">
-            <CheckCircle2 className="text-emerald-600 w-4 h-4" /> Aperçu prêt. Aucun envoi au serveur n'a été effectué.
+            <CheckCircle2 className="text-emerald-600 w-4 h-4" /> Aperçu prêt. Confirmez séparément pour importer.
           </div>
+        </div>
+      )}
+      {sheets.length > 0 && (
+        <div className="border rounded-xl p-5 space-y-3">
+          <label className="flex gap-2 items-start text-sm">
+            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+            Je confirme l'importation de {included.length} feuille(s) dans une base de test vérifiée.
+          </label>
+          <Button disabled={!confirmed || !included.length || working} onClick={() => void importSelected()}>
+            {working ? "Importation…" : "Importer les feuilles sélectionnées"}
+          </Button>
+          {result && <p className="text-sm" role="status">
+            Résultat : {result.created} créés · {result.updated} mis à jour · {result.skipped} ignorés · {result.errors} erreurs.
+          </p>}
         </div>
       )}
     </div>
