@@ -196,7 +196,7 @@ export const GetEmployeeFicheResponse = zod.object({
       id: zod.number(),
       employeeId: zod.number(),
       type: zod.enum([
-        "PATHOLOGIQUE",
+        "PATHOLOGIQUE", "PSYCHOLOGIQUE",
         "PROFESSIONNEL",
         "CHIRURGICAL",
         "ALLERGIQUE",
@@ -247,6 +247,10 @@ export const GetEmployeeFicheResponse = zod.object({
         ])
         .nullish(),
       orientationSoins: zod.string().nullish(),
+      orientationMt: zod.string().nullish(),
+      orientationMs: zod.string().nullish(),
+      aptitudeDetails: zod.string().nullish(),
+      decisionManuscrite: zod.string().nullish(),
       examenRadio: zod.string().nullish(),
       bilan: zod.string().nullish(),
       createdAt: zod.string(),
@@ -279,6 +283,10 @@ export const GetEmployeeVisitesResponseItem = zod.object({
     ])
     .nullish(),
   orientationSoins: zod.string().nullish(),
+  orientationMt: zod.string().nullish(),
+  orientationMs: zod.string().nullish(),
+  aptitudeDetails: zod.string().nullish(),
+  decisionManuscrite: zod.string().nullish(),
   examenRadio: zod.string().nullish(),
   bilan: zod.string().nullish(),
   createdAt: zod.string(),
@@ -310,6 +318,10 @@ export const CreateVisiteBody = zod.object({
     ])
     .nullish(),
   orientationSoins: zod.string().nullish(),
+  orientationMt: zod.string().nullish(),
+  orientationMs: zod.string().nullish(),
+  aptitudeDetails: zod.string().nullish(),
+  decisionManuscrite: zod.string().nullish(),
   examenRadio: zod.string().nullish(),
   bilan: zod.string().nullish(),
 });
@@ -337,6 +349,10 @@ export const UpdateVisiteBody = zod.object({
     ])
     .nullish(),
   orientationSoins: zod.string().nullish(),
+  orientationMt: zod.string().nullish(),
+  orientationMs: zod.string().nullish(),
+  aptitudeDetails: zod.string().nullish(),
+  decisionManuscrite: zod.string().nullish(),
   examenRadio: zod.string().nullish(),
   bilan: zod.string().nullish(),
 });
@@ -359,6 +375,10 @@ export const UpdateVisiteResponse = zod.object({
     ])
     .nullish(),
   orientationSoins: zod.string().nullish(),
+  orientationMt: zod.string().nullish(),
+  orientationMs: zod.string().nullish(),
+  aptitudeDetails: zod.string().nullish(),
+  decisionManuscrite: zod.string().nullish(),
   examenRadio: zod.string().nullish(),
   bilan: zod.string().nullish(),
   createdAt: zod.string(),
@@ -384,7 +404,7 @@ export const CreateAntecedentParams = zod.object({
 
 export const CreateAntecedentBody = zod.object({
   type: zod.enum([
-    "PATHOLOGIQUE",
+    "PATHOLOGIQUE", "PSYCHOLOGIQUE",
     "PROFESSIONNEL",
     "CHIRURGICAL",
     "ALLERGIQUE",
