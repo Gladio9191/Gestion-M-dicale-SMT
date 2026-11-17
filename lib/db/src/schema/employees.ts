@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const antecedentTypeEnum = pgEnum("antecedent_type", [
-  "PATHOLOGIQUE", "PSYCHIQUE",
+  "PATHOLOGIQUE", "PSYCHOLOGIQUE",
   "PROFESSIONNEL",
   "CHIRURGICAL",
   "ALLERGIQUE",
