@@ -120,6 +120,7 @@ export type AntecedentType =
 
 export const AntecedentType = {
   PATHOLOGIQUE: "PATHOLOGIQUE",
+  PSYCHIQUE: "PSYCHIQUE",
   PROFESSIONNEL: "PROFESSIONNEL",
   CHIRURGICAL: "CHIRURGICAL",
   ALLERGIQUE: "ALLERGIQUE",
@@ -139,6 +140,7 @@ export type CreateAntecedentBodyType =
 
 export const CreateAntecedentBodyType = {
   PATHOLOGIQUE: "PATHOLOGIQUE",
+  PSYCHIQUE: "PSYCHIQUE",
   PROFESSIONNEL: "PROFESSIONNEL",
   CHIRURGICAL: "CHIRURGICAL",
   ALLERGIQUE: "ALLERGIQUE",
