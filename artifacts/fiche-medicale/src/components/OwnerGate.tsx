@@ -81,6 +81,20 @@ export default function OwnerGate({ children }: { children: ReactNode }) {
     }
   }
 
+  // Static Vercel preview has no private API. Only when the Vercel Preview
+  // build explicitly opts in, show the real UI with NO backend or patient data.
+  // Production never gets this flag. No login credentials are generated here.
+  if (import.meta.env.VITE_SMT_VISUAL_PREVIEW === "1") {
+    return (
+      <>
+        <div role="status" className="bg-amber-100 text-amber-950 border-b border-amber-300 px-4 py-2 text-xs font-semibold text-center">
+          Aperçu visuel uniquement — données médicales non connectées, importation et envoi indisponibles.
+        </div>
+        {children}
+      </>
+    );
+  }
+
   if (state === "ready") return <>{children}</>;
 
   return (

@@ -126,6 +126,14 @@ export default function Dashboard() {
   const { data: recentVisites } = useGetRecentVisites({ limit: 6 });
   const { data: aptitudeStats } = useGetAptitudeStats();
 
+  // An unreachable API may return a non-array response (e.g. Vite's SPA
+  // HTML fallback). Never let such a response crash the dashboard.
+  const safeByService = Array.isArray(byService) ? byService : [];
+  const safeRecentVisites = Array.isArray(recentVisites) ? recentVisites : [];
+  const safeAptitudeStats = Array.isArray(aptitudeStats) ? aptitudeStats : [];
+  const apiDataUnavailable = !Array.isArray(byService) ||
+    !Array.isArray(recentVisites) || !Array.isArray(aptitudeStats);
+
   const totalVisites = overview?.totalVisites ?? 0;
 
   const STATS = [
@@ -137,17 +145,22 @@ export default function Dashboard() {
 
   /* Bubble data from aptitude stats */
   const bubbleColors = [BLUE, TEAL, GREEN];
-  const bubbleData = (aptitudeStats ?? []).slice(0, 3).map((s, i) => ({
+  const bubbleData = safeAptitudeStats.slice(0, 3).map((s, i) => ({
     label: DECISION_CFG[s.decision]?.label ?? s.decision,
     count: s.count,
     color: bubbleColors[i],
   }));
 
   /* Donut data */
-  const totalApt = aptitudeStats?.reduce((s, x) => s + x.count, 0) ?? 0;
+  const totalApt = safeAptitudeStats.reduce((s, x) => s + x.count, 0);
 
   return (
     <div className="p-6 max-w-[1380px] mx-auto space-y-6">
+      {apiDataUnavailable && (
+        <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Aperçu de l'interface — serveur de données non connecté. Les chiffres et les activités ne sont pas disponibles.
+        </div>
+      )}
 
       {/* ── 4 stat cards ───────────────────────────────────────────── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -165,9 +178,9 @@ export default function Dashboard() {
               <MoreHorizontal className="w-4 h-4 text-slate-400" />
             </button>
           </div>
-          {byService && byService.length > 0 ? (
+          {safeByService.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={byService} barSize={18} margin={{ top:0, right:4, left:-16, bottom:0 }}>
+              <BarChart data={safeByService} barSize={18} margin={{ top:0, right:4, left:-16, bottom:0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#F0F4FF" vertical={false} />
                 <XAxis dataKey="service" tick={{ fontSize:11, fill:"#94A3B8", fontFamily:"Inter" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize:10, fill:"#CBD5E1", fontFamily:"Inter" }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -216,20 +229,20 @@ export default function Dashboard() {
               <MoreHorizontal className="w-4 h-4 text-slate-400" />
             </button>
           </div>
-          {aptitudeStats && aptitudeStats.length > 0 ? (
+          {safeAptitudeStats.length > 0 ? (
             <>
               <div className="relative">
                 <ResponsiveContainer width="100%" height={160}>
                   <PieChart>
                     <Pie
-                      data={aptitudeStats}
+                      data={safeAptitudeStats}
                       dataKey="count"
                       nameKey="decision"
                       cx="50%" cy="50%"
                       innerRadius={52} outerRadius={72}
                       strokeWidth={0} paddingAngle={4}
                     >
-                      {aptitudeStats.map((_, i) => (
+                      {safeAptitudeStats.map((_, i) => (
                         <Cell key={i} fill={[TEAL, "#EF4444", AMBER][i % 3]} />
                       ))}
                     </Pie>
@@ -280,7 +293,7 @@ export default function Dashboard() {
               <MoreHorizontal className="w-4 h-4 text-slate-400" />
             </button>
           </div>
-          {recentVisites && recentVisites.length > 0 ? (
+          {safeRecentVisites.length > 0 ? (
             <table className="w-full">
               <thead>
                 <tr>
@@ -292,7 +305,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {recentVisites.map((v) => {
+                {safeRecentVisites.map((v) => {
                   const cfg = v.decisionAptitude ? (DECISION_CFG[v.decisionAptitude] ?? null) : null;
                   const initials = (v.nomPrenom ?? "?").split(" ").map((w: string) => w[0]).join("").slice(0,2).toUpperCase();
                   const avatarColors = [BLUE, TEAL, PURPLE, PINK, AMBER, GREEN];

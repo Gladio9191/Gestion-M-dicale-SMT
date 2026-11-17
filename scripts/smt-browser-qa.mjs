@@ -40,6 +40,9 @@ try {
    assert.ok(await page.getByText("Tableau de bord",{exact:true}).count()>0,"Missing premium sidebar "+route);
    await page.waitForTimeout(250);
  }
+ await page.goto(base+"/",{waitUntil:"domcontentloaded"});
+ assert.ok(await page.getByText("Aperçu visuel uniquement",{exact:false}).count()>0,
+   "The Vercel Preview build must visibly label synthetic UI-only mode");
  await page.goto(base+"/import/multi-feuilles",{waitUntil:"domcontentloaded"});
  assert.ok(await page.getByText("Import Excel — multi-feuilles",{exact:false}).count()>0);
  const appRequire=createRequire(new URL("../artifacts/fiche-medicale/package.json",import.meta.url));
@@ -59,6 +62,15 @@ try {
  assert.ok(await page.getByText("date(s) non interprétable(s)",{exact:false}).count()>0,
    "Browser Excel preview must identify invalid dates");
  await page.screenshot({path:"/tmp/smt-browser-preview.png",fullPage:true});
+ // Regression: a frontend-only Vite preview returns HTML/non-array data for
+ // missing /api/stats endpoints. Dashboard must not crash to a blank page.
+ await page.route("**/api/stats/**",route=>route.fulfill({
+   status:200,contentType:"application/json",body:JSON.stringify({error:"Backend not connected"})
+ }));
+ await page.goto(base+"/",{waitUntil:"domcontentloaded"});
+ await page.getByText("serveur de données non connecté",{exact:false}).waitFor({timeout:12000});
+ assert.ok(await page.getByText("Tableau de bord",{exact:true}).count()>0,
+   "Dashboard remains visible with non-array API responses");
  assert.deepEqual(errors,[],"Unhandled React browser runtime errors");
  console.log("PASS synthetic browser navigation "+routes.length+" routes, original premium sidebar, import screen, no JS page errors");
 } finally { await browser.close(); }

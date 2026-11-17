@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "PORT=18971 BASE_PATH=/ pnpm --filter @workspace/fiche-medicale run build",
+  "buildCommand": "if [ \"$VERCEL_ENV\" = \"preview\" ]; then VITE_SMT_VISUAL_PREVIEW=1 VITE_API_BASE_URL= PORT=18971 BASE_PATH=/ pnpm --filter @workspace/fiche-medicale run build; else PORT=18971 BASE_PATH=/ pnpm --filter @workspace/fiche-medicale run build; fi",
   "outputDirectory": "artifacts/fiche-medicale/dist/public",
   "rewrites": [
     {
