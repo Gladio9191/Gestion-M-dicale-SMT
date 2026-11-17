@@ -87,6 +87,10 @@ export interface Visite {
   recommandations?: string | null;
   decisionAptitude?: VisiteDecisionAptitude;
   orientationSoins?: string | null;
+  orientationMt?: string | null;
+  orientationMs?: string | null;
+  aptitudeDetails?: string | null;
+  decisionManuscrite?: string | null;
   examenRadio?: string | null;
   bilan?: string | null;
   createdAt: string;
@@ -111,6 +115,10 @@ export interface CreateVisiteBody {
   recommandations?: string | null;
   decisionAptitude?: CreateVisiteBodyDecisionAptitude;
   orientationSoins?: string | null;
+  orientationMt?: string | null;
+  orientationMs?: string | null;
+  aptitudeDetails?: string | null;
+  decisionManuscrite?: string | null;
   examenRadio?: string | null;
   bilan?: string | null;
 }
