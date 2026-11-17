@@ -647,6 +647,18 @@ components:
         orientationSoins:
           type: string
           nullable: true
+        orientationMt:
+          type: string
+          nullable: true
+        orientationMs:
+          type: string
+          nullable: true
+        aptitudeDetails:
+          type: string
+          nullable: true
+        decisionManuscrite:
+          type: string
+          nullable: true
         examenRadio:
           type: string
           nullable: true
@@ -684,6 +696,18 @@ components:
         orientationSoins:
           type: string
           nullable: true
+        orientationMt:
+          type: string
+          nullable: true
+        orientationMs:
+          type: string
+          nullable: true
+        aptitudeDetails:
+          type: string
+          nullable: true
+        decisionManuscrite:
+          type: string
+          nullable: true
         examenRadio:
           type: string
           nullable: true
@@ -701,7 +725,7 @@ components:
           type: integer
         type:
           type: string
-          enum: [PATHOLOGIQUE, PROFESSIONNEL, CHIRURGICAL, ALLERGIQUE, AUTRE]
+          enum: [PATHOLOGIQUE, PROFESSIONNEL, CHIRURGICAL, ALLERGIQUE, PSYCHOLOGIQUE, AUTRE]
         description:
           type: string
         createdAt:
@@ -713,7 +737,7 @@ components:
       properties:
         type:
           type: string
-          enum: [PATHOLOGIQUE, PROFESSIONNEL, CHIRURGICAL, ALLERGIQUE, AUTRE]
+          enum: [PATHOLOGIQUE, PROFESSIONNEL, CHIRURGICAL, ALLERGIQUE, PSYCHOLOGIQUE, AUTRE]
         description:
           type: string
       required: [type, description]
