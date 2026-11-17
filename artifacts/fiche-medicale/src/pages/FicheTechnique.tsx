@@ -62,6 +62,8 @@ const ANTECEDENT_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 const EXPERTISE_TYPES = ["OPTHALMO", "PSY", "ORL", "VERTIGE", "AUTRE"] as const;
+// Keep the existing persisted enum value for backward compatibility.
+const expertiseLabel = (type: string) => type === "OPTHALMO" ? "OPHTALMO" : type;
 
 function SectionHeader({ title, onAdd, addLabel }: { title: string; onAdd?: () => void; addLabel?: string }) {
   return (
@@ -477,7 +479,7 @@ export default function FicheTechnique() {
               <button onClick={() => deleteExpertise.mutate({ id: exp.id }, { onSuccess: invalidate })} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive transition-colors">
                 <Trash2 className="w-3 h-3" />
               </button>
-              <p className="text-xs font-semibold text-primary">{exp.typeExpertise}</p>
+              <p className="text-xs font-semibold text-primary">{expertiseLabel(exp.typeExpertise)}</p>
               {exp.dateExpertise && <p className="text-xs text-muted-foreground mt-0.5">{exp.dateExpertise}</p>}
               {exp.resultat && <p className="text-sm mt-1">{exp.resultat}</p>}
               {exp.notes && <p className="text-xs text-muted-foreground mt-1">{exp.notes}</p>}
@@ -490,7 +492,7 @@ export default function FicheTechnique() {
               <div>
                 <label className="text-xs text-muted-foreground">Type</label>
                 <select className="w-full px-3 py-2 text-sm bg-background border border-input rounded-md" value={expertiseForm.typeExpertise} onChange={e => setExpertiseForm(f => ({ ...f, typeExpertise: e.target.value }))}>
-                  {EXPERTISE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  {EXPERTISE_TYPES.map(t => <option key={t} value={t}>{expertiseLabel(t)}</option>)}
                 </select>
               </div>
               <div><label className="text-xs text-muted-foreground">Date</label><Input type="date" value={expertiseForm.dateExpertise} onChange={e => setExpertiseForm(f => ({ ...f, dateExpertise: e.target.value }))} /></div>
