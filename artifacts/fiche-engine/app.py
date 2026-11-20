@@ -21,6 +21,7 @@ Endpoints (all prefixed /fiche-engine):
 """
 
 import io
+import json
 import os
 import urllib.request
 import urllib.parse
@@ -30,6 +31,7 @@ import logging
 from pathlib import Path
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from request_validation import parse_year_range
 import fiche_medicale as fm
 from fpdf import FPDF
 
@@ -137,8 +139,10 @@ def generate():
     except (TypeError, ValueError):
         return jsonify({"error": "matricule invalide"}), 400
 
-    year_from = int(body.get("year_from", 2017))
-    year_to = int(body.get("year_to", 2026))
+    try:
+        year_from, year_to = parse_year_range(body)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     personnel_match = _db["personnel"][_db["personnel"]["Matricule"] == matricule]
     vms_match = _db["vms"][_db["vms"]["Matricule"] == matricule]
@@ -162,8 +166,10 @@ def batch_text():
         return err
     body = request.get_json(silent=True) or {}
     text = body.get("text", "")
-    year_from = int(body.get("year_from", 2017))
-    year_to = int(body.get("year_to", 2026))
+    try:
+        year_from, year_to = parse_year_range(body)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     matricules = fm.parse_matricules_from_text(text)
     if not matricules:
@@ -185,8 +191,10 @@ def batch_excel():
         return jsonify({"error": "Aucun fichier fourni."}), 400
 
     f = request.files["file"]
-    year_from = int(request.form.get("year_from", 2017))
-    year_to = int(request.form.get("year_to", 2026))
+    try:
+        year_from, year_to = parse_year_range(request.form)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     suffix = Path(f.filename).suffix if f.filename else ".xlsx"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -219,8 +227,10 @@ def batch_image():
         return jsonify({"error": "Aucun fichier fourni."}), 400
 
     f = request.files["file"]
-    year_from = int(request.form.get("year_from", 2017))
-    year_to = int(request.form.get("year_to", 2026))
+    try:
+        year_from, year_to = parse_year_range(request.form)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     suffix = Path(f.filename).suffix if f.filename else ".png"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -256,8 +266,10 @@ def batch_generate():
         return err
     body = request.get_json(silent=True) or {}
     entries = body.get("matricules", [])
-    year_from = int(body.get("year_from", 2017))
-    year_to = int(body.get("year_to", 2026))
+    try:
+        year_from, year_to = parse_year_range(body)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     if not entries:
         return jsonify({"error": "Liste de matricules vide."}), 400
@@ -431,8 +443,10 @@ def send_telegram():
     if not chat_id:
         return jsonify({"error": "chat_id manquant"}), 400
 
-    year_from = int(body.get("year_from", 2017))
-    year_to   = int(body.get("year_to", 2026))
+    try:
+        year_from, year_to = parse_year_range(body)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     try:
         fiche = fm.generate_fiche(matricule, _db, year_from, year_to)
