@@ -1,7 +1,7 @@
 name: Gestion Medicale SMT typecheck and build
 'on':
   push:
-    branches: ["qa/toolkit-2026-11-20"]
+    branches: ["qa/toolkit-2026-11-20", "feature/phase2-date-validation"]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -29,3 +29,16 @@ jobs:
           BASE_PATH: '/'
           NODE_ENV: production
         run: pnpm run build
+
+  python-api-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check Python API module syntax
+        run: python -m py_compile artifacts/fiche-engine/app.py artifacts/fiche-engine/request_validation.py
+      - name: Run synthetic year-range regression tests
+        run: python -m unittest discover -s artifacts/fiche-engine/tests -p 'test_*.py' -v
