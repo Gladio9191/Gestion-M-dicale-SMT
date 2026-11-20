@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { spreadsheetUploadError, MAX_SPREADSHEET_ROWS } from "@/lib/spreadsheet-guards";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    TYPES
@@ -268,20 +269,37 @@ export default function GenererFiches() {
   }, []);
 
   const loadFile = useCallback((file: File, isGlobal: boolean) => {
+    const uploadError = spreadsheetUploadError(file);
+    if (uploadError) {
+      toast({ title: "Fichier refusé", description: uploadError, variant: "destructive" });
+      return;
+    }
     const reader = new FileReader();
+    reader.onerror = () => toast({ title: "Lecture du fichier impossible", variant: "destructive" });
     reader.onload = (e) => {
-      const wb = XLSX.read(e.target?.result, { type: "array", cellDates: true });
-      setFiles((prev) => {
-        const base = prev.find((f) => f.file.name === file.name)
-          ? prev.map((f) => f.file.name === file.name ? { ...f, wb, isGlobal } : f)
-          : [...prev, { file, wb, isGlobal }];
-        const next = base.map((f) => ({ ...f, isGlobal: f.isGlobal || normalize(f.file.name).includes("global") || normalize(f.file.name).includes("personnel") || normalize(f.file.name).includes("effectif") }));
-        reparse(next);
-        return next;
-      });
+      try {
+        if (!e.target?.result) throw new Error("Fichier vide");
+        const wb = XLSX.read(e.target.result, { type: "array", cellDates: true, sheetRows: MAX_SPREADSHEET_ROWS + 1 });
+        if (!wb.SheetNames.length) throw new Error("Feuille absente");
+        setFiles((prev) => {
+          const base = prev.find((f) => f.file.name === file.name)
+            ? prev.map((f) => f.file.name === file.name ? { ...f, wb, isGlobal } : f)
+            : [...prev, { file, wb, isGlobal }];
+          const next = base.map((f) => ({ ...f, isGlobal: f.isGlobal || normalize(f.file.name).includes("global") || normalize(f.file.name).includes("personnel") || normalize(f.file.name).includes("effectif") }));
+          try {
+            reparse(next);
+            return next;
+          } catch {
+            toast({ title: "Classeur incompatible ou trop complexe", variant: "destructive" });
+            return prev;
+          }
+        });
+      } catch {
+        toast({ title: "Fichier Excel illisible ou non valide", variant: "destructive" });
+      }
     };
     reader.readAsArrayBuffer(file);
-  }, [reparse]);
+  }, [reparse, toast]);
 
   const onDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); setDragging(false); Array.from(e.dataTransfer.files).forEach((f) => loadFile(f, false)); }, [loadFile]);
   const toggleGlobal = (idx: number) => setFiles((prev) => { const next = prev.map((f, i) => i === idx ? { ...f, isGlobal: !f.isGlobal } : f); reparse(next); return next; });
@@ -382,6 +400,11 @@ export default function GenererFiches() {
   };
 
   const uploadToEngine = async (file: File) => {
+    const uploadError = spreadsheetUploadError(file);
+    if (uploadError || !/\\.(xlsx|xls)$/i.test(file.name)) {
+      toast({ title: "Upload refusé", description: uploadError ?? "Fichier Excel requis.", variant: "destructive" });
+      return;
+    }
     setEngineUploading(true);
     const fd = new FormData(); fd.append("file", file);
     try {
