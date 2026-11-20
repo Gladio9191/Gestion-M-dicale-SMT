@@ -401,7 +401,7 @@ export default function GenererFiches() {
 
   const uploadToEngine = async (file: File) => {
     const uploadError = spreadsheetUploadError(file);
-    if (uploadError || !/\\.(xlsx|xls)$/i.test(file.name)) {
+    if (uploadError || !/\.(xlsx|xls)$/i.test(file.name)) {
       toast({ title: "Upload refusé", description: uploadError ?? "Fichier Excel requis.", variant: "destructive" });
       return;
     }
