@@ -1,0 +1,27 @@
+name: Gestion Medicale SMT typecheck and build
+'on':
+  push:
+    branches: ["qa/toolkit-2026-11-20"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  typescript-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify TypeScript types
+        run: pnpm run typecheck
+      - name: Build workspace
+        run: pnpm run build
