@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { spreadsheetUploadError, MAX_SPREADSHEET_ROWS } from "@/lib/spreadsheet-guards";
 
 const TARGET_FIELDS = [
   { key: "matricule",            label: "Matricule (Mle)",       required: true  },
@@ -72,22 +73,34 @@ export default function ImportExcel() {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   const parseFile = useCallback((file: File) => {
-    setFileName(file.name);
+    const uploadError = spreadsheetUploadError(file);
+    if (uploadError) {
+      toast({ title: "Import refusé", description: uploadError, variant: "destructive" });
+      return;
+    }
     setResult(null);
     const reader = new FileReader();
+    reader.onerror = () => toast({ title: "Lecture du fichier impossible", variant: "destructive" });
     reader.onload = (e) => {
-      const data = e.target?.result;
-      const wb = XLSX.read(data, { type: "array", cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const jsonRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "", raw: false });
-      if (jsonRows.length === 0) {
-        toast({ title: "Fichier vide", description: "Aucune ligne détectée.", variant: "destructive" });
-        return;
+      try {
+        const data = e.target?.result;
+        if (!data) throw new Error("Fichier illisible");
+        const wb = XLSX.read(data, { type: "array", cellDates: true, sheetRows: MAX_SPREADSHEET_ROWS + 1 });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        if (!ws) throw new Error("Feuille absente");
+        const jsonRows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "", raw: false });
+        if (jsonRows.length === 0 || jsonRows.length > MAX_SPREADSHEET_ROWS) {
+          toast({ title: "Import refusé", description: "Fichier vide ou trop de lignes.", variant: "destructive" });
+          return;
+        }
+        const hdrs = Object.keys(jsonRows[0]);
+        setHeaders(hdrs);
+        setRows(jsonRows);
+        setFileName(file.name);
+        setMapping(autoMap(hdrs));
+      } catch {
+        toast({ title: "Fichier Excel illisible ou non valide", variant: "destructive" });
       }
-      const hdrs = Object.keys(jsonRows[0]);
-      setHeaders(hdrs);
-      setRows(jsonRows);
-      setMapping(autoMap(hdrs));
     };
     reader.readAsArrayBuffer(file);
   }, [toast]);
