@@ -24,4 +24,8 @@ jobs:
       - name: Verify TypeScript types
         run: pnpm run typecheck
       - name: Build workspace
+        env:
+          PORT: '4173'
+          BASE_PATH: '/'
+          NODE_ENV: production
         run: pnpm run build
