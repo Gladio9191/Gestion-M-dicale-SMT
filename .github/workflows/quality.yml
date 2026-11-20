@@ -21,6 +21,8 @@ jobs:
           cache: pnpm
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
+      - name: Source-backed API security regression checks
+        run: node --test tests/*.test.cjs
       - name: Verify TypeScript types
         run: pnpm run typecheck
       - name: Build workspace
