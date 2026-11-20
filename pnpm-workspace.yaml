@@ -75,6 +75,13 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
+  # Security patches applied only to the isolated audit branch.
+  # Do not force newer major versions of zod or replace xlsx without migration tests.
+  "express>proxy-addr": "^2.0.8"
+  "express>body-parser": "^2.4.0"
+  "router>path-to-regexp": "^8.4.0"
+  "micromatch>picomatch": "^2.3.2"
+  "docx>nanoid": "^5.1.16"
   # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
