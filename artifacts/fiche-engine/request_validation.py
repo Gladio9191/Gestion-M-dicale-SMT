@@ -6,7 +6,7 @@ def _year(value, field):
     if isinstance(value, bool) or not isinstance(value, (int, str)):
         raise ValueError(f'{field} doit être une année entière au format AAAA')
     text = str(value).strip()
-    if not re.fullmatch(r'\\d{4}', text):
+    if not re.fullmatch(r'\d{4}', text):
         raise ValueError(f'{field} doit être une année entière au format AAAA')
     year = int(text)
     if year < 1900 or year > 2100:
