@@ -16,6 +16,8 @@ def _year(value, field):
 
 def parse_year_range(values):
     """Read JSON dict or Flask MultiDict without accepting empty or reversed years."""
+    if not hasattr(values, 'get'):
+        raise ValueError('Paramètres de période invalides')
     year_from = _year(values.get('year_from', 2017), 'year_from')
     year_to = _year(values.get('year_to', 2026), 'year_to')
     if year_from > year_to:
