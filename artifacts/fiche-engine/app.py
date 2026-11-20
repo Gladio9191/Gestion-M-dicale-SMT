@@ -30,6 +30,7 @@ import tempfile
 import logging
 from pathlib import Path
 from flask import Flask, request, jsonify
+from security_guards import is_loopback_peer, allowed_web_origins, is_telegram_recipient_allowed
 from flask_cors import CORS
 from request_validation import parse_year_range
 import fiche_medicale as fm
@@ -41,7 +42,20 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 BASE_PATH = os.environ.get("BASE_PATH", "/api/fiche-engine")
-CORS(app, origins="*")
+CORS(app, origins=allowed_web_origins())
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
+
+
+@app.before_request
+def _restrict_engine_to_local_proxy():
+    # The public Express proxy connects via localhost. Remote direct clients are rejected.
+    if not is_loopback_peer(request.remote_addr):
+        return jsonify({'error': 'Accès direct interdit : utiliser le proxy applicatif.'}), 403
+
+
+@app.errorhandler(413)
+def _upload_too_large(_error):
+    return jsonify({'error': 'Fichier trop volumineux (maximum 32 Mio).'}), 413
 
 # ── In-memory database state ──────────────────────────────────────────────────
 _db: dict | None = None
@@ -79,21 +93,20 @@ def upload():
 
     try:
         logger.info("Loading Data-Base.xlsx from upload...")
-        _db = fm.load_database(tmp_path)
-        n_personnel = len(_db["personnel"])
-        n_vms = len(_db["vms"])
+        new_db = fm.load_database(tmp_path)
+        n_personnel = len(new_db["personnel"])
+        n_vms = len(new_db["vms"])
         _db_info = {
             "filename": f.filename,
             "personnel_count": n_personnel,
             "vms_rows": n_vms,
         }
+        _db = new_db  # Swap only after the entire source loaded successfully.
         logger.info("Database loaded: %d personnel, %d VMS rows", n_personnel, n_vms)
         return jsonify({"ok": True, **_db_info})
     except Exception as e:
-        logger.error("Upload error: %s", e)
-        _db = None
-        _db_info = {}
-        return jsonify({"error": str(e)}), 500
+        logger.error("Upload error type: %s", type(e).__name__)
+        return jsonify({"error": "Import impossible. Le registre existant reste inchangé."}), 500
     finally:
         try:
             os.unlink(tmp_path)
@@ -153,8 +166,8 @@ def generate():
         fiche = fm.generate_fiche(matricule, _db, year_from, year_to)
         return jsonify(fiche)
     except Exception as e:
-        logger.error("generate error: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.error("Generate error type: %s", type(e).__name__)
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
 
 
 # ── Batch: from text ──────────────────────────────────────────────────────────
@@ -242,7 +255,7 @@ def batch_image():
     except ImportError as e:
         return jsonify({"error": str(e), "ocr_unavailable": True}), 503
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
     finally:
         try:
             os.unlink(tmp_path)
@@ -288,7 +301,7 @@ def audit_duplicates():
     try:
         return jsonify({"suspects": fm.audit_duplicate_matricules(_db)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
 
 
 @app.get(f"{BASE_PATH}/audit/direction")
@@ -299,7 +312,7 @@ def audit_direction():
     try:
         return jsonify(fm.audit_matricule_direction_mismatch(_db))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
 
 
 @app.get(f"{BASE_PATH}/audit/fonction")
@@ -310,7 +323,7 @@ def audit_fonction():
     try:
         return jsonify(fm.audit_matricule_fonction_mismatch(_db))
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
 
 
 @app.get(f"{BASE_PATH}/audit/crossed")
@@ -321,7 +334,7 @@ def audit_crossed():
     try:
         return jsonify({"results": fm.audit_matricule_croise(_db)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
 
 
 # ── Send fiche via Telegram ───────────────────────────────────────────────────
@@ -442,6 +455,8 @@ def send_telegram():
     chat_id = str(body.get("chat_id", "")).strip()
     if not chat_id:
         return jsonify({"error": "chat_id manquant"}), 400
+    if not is_telegram_recipient_allowed(chat_id):
+        return jsonify({"error": "Destinataire Telegram non autorisé ou non configuré."}), 403
 
     try:
         year_from, year_to = parse_year_range(body)
@@ -451,14 +466,14 @@ def send_telegram():
     try:
         fiche = fm.generate_fiche(matricule, _db, year_from, year_to)
     except Exception as e:
-        logger.error("generate_fiche error: %s", e)
-        return jsonify({"error": str(e)}), 500
+        logger.error("Generate fiche error type: %s", type(e).__name__)
+        return jsonify({"error": "Erreur interne pendant le traitement."}), 500
 
     try:
         pdf_bytes = _build_fiche_pdf(fiche)
     except Exception as e:
-        logger.error("pdf build error: %s", e)
-        return jsonify({"error": f"Erreur génération PDF: {e}"}), 500
+        logger.error("PDF build error type: %s", type(e).__name__)
+        return jsonify({"error": "Échec de génération du PDF."}), 500
 
     filename = f"fiche_{matricule}.pdf"
     caption  = (
@@ -495,11 +510,11 @@ def send_telegram():
             resp.read()
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")
-        logger.error("Telegram API error: %s — %s", e.code, detail)
-        return jsonify({"error": f"Telegram API {e.code}: {detail}"}), 502
+        logger.error("Telegram API error: HTTP %s", e.code)
+        return jsonify({"error": f"Telegram API HTTP {e.code}."}), 502
     except Exception as e:
-        logger.error("Telegram send error: %s", e)
-        return jsonify({"error": str(e)}), 502
+        logger.error("Telegram send error type: %s", type(e).__name__)
+        return jsonify({"error": "Échec de l’envoi Telegram."}), 502
 
     # ── Log to Express API (best-effort, non-blocking) ────────────────────
     nom_prenom = f"{fiche.get('nom','')} {fiche.get('prenom','')}".strip() or str(matricule)
@@ -532,4 +547,4 @@ def send_telegram():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     logger.info("fiche-engine starting on port %d at %s", port, BASE_PATH)
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="127.0.0.1", port=port, debug=False)
